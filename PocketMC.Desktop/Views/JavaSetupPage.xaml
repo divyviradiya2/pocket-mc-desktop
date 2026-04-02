@@ -1,0 +1,51 @@
+<Page x:Class="PocketMC.Desktop.Views.JavaSetupPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Java Setup">
+    
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <ui:TextBlock Grid.Row="0" FontTypography="Title" Text="Setting up Runtimes" Margin="0,0,0,8"/>
+        
+        <ui:TextBlock Grid.Row="1" FontTypography="Body" 
+                      Text="PocketMC needs to download headless Java runtimes so servers can run completely isolated from your system. This only happens once." 
+                      Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,32"/>
+        
+        <ItemsControl Grid.Row="2" x:Name="TasksList">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Grid Margin="0,0,0,24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding TaskName}" FontWeight="SemiBold" FontSize="14"/>
+                            <TextBlock Grid.Column="1" Text="{Binding StatusText}" Foreground="{Binding StatusColor}" FontWeight="SemiBold"/>
+                        </Grid>
+                        
+                        <ProgressBar Grid.Row="1" Value="{Binding ProgressValue}" Minimum="0" Maximum="100" Margin="0,0,0,8"/>
+                        
+                        <TextBlock Grid.Row="2" Text="{Binding ProgressText}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" HorizontalAlignment="Right"/>
+                    </Grid>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        
+        <TextBlock x:Name="TxtGlobalStatus" Grid.Row="3" Text="Checking requirements..." 
+                   HorizontalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+    </Grid>
+</Page>

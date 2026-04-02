@@ -59,7 +59,27 @@ namespace PocketMC.Desktop.Services
             return instances;
         }
 
-        public InstanceMetadata CreateInstance(string name, string description)
+        public string? GetInstancePath(Guid id)
+        {
+            EnsureDirectory();
+            foreach (var dir in Directory.GetDirectories(_serversDirectory))
+            {
+                var metadataFile = Path.Combine(dir, ".pocket-mc.json");
+                if (File.Exists(metadataFile))
+                {
+                    try
+                    {
+                        var content = File.ReadAllText(metadataFile);
+                        if (content.Contains(id.ToString()))
+                            return dir;
+                    }
+                    catch { }
+                }
+            }
+            return null;
+        }
+
+        public InstanceMetadata CreateInstance(string name, string description, string serverType = "Vanilla", string minecraftVersion = "1.20.4")
         {
             EnsureDirectory();
 
@@ -81,6 +101,8 @@ namespace PocketMC.Desktop.Services
                 Id = Guid.NewGuid(),
                 Name = name,
                 Description = description,
+                ServerType = serverType,
+                MinecraftVersion = minecraftVersion,
                 CreatedAt = DateTime.UtcNow
             };
 

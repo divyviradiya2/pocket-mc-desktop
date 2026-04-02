@@ -1,0 +1,53 @@
+<Window x:Class="PocketMC.Desktop.Views.NewInstanceDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="Create New Server" Height="450" Width="400"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{DynamicResource ApplicationBackgroundBrush}">
+    
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <ui:TextBlock Grid.Row="0" FontTypography="Title" Text="New Instance" Margin="0,0,0,16"/>
+        
+        <StackPanel Grid.Row="1" x:Name="InputsPanel">
+            <TextBlock Text="Server Name" Margin="0,0,0,4"/>
+            <ui:TextBox x:Name="TxtName" PlaceholderText="My Cool Server" Margin="0,0,0,12"/>
+            
+            <TextBlock Text="Description" Margin="0,0,0,4"/>
+            <ui:TextBox x:Name="TxtDescription" PlaceholderText="A descriptive text" Margin="0,0,0,12"/>
+            
+            <TextBlock Text="Server Type" Margin="0,0,0,4"/>
+            <ComboBox x:Name="CmbServerType" Margin="0,0,0,12" SelectionChanged="CmbServerType_SelectionChanged">
+                <ComboBoxItem Content="Vanilla" IsSelected="True"/>
+                <ComboBoxItem Content="Paper"/>
+            </ComboBox>
+            
+            <TextBlock Text="Minecraft Version" Margin="0,0,0,4"/>
+            <ComboBox x:Name="CmbVersion" Margin="0,0,0,12" DisplayMemberPath="Id" />
+        </StackPanel>
+        
+        <!-- Progress overlay, shown during download -->
+        <Border Grid.Row="2" x:Name="ProgressOverlay" Visibility="Collapsed" VerticalAlignment="Center" Margin="0,16,0,0">
+            <StackPanel>
+                <TextBlock Text="Downloading Server JAR..." HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                <ProgressBar x:Name="PrgDownload" Minimum="0" Maximum="100" Height="4" Margin="0,0,0,8"/>
+                <TextBlock x:Name="TxtProgress" Text="0 MB / 0 MB" HorizontalAlignment="Center" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </Border>
+        
+        <TextBlock x:Name="TxtError" Grid.Row="3" Foreground="Red" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="Collapsed"/>
+        
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <ui:Button Content="Cancel" Appearance="Secondary" Margin="0,0,8,0" Click="BtnCancel_Click"/>
+            <ui:Button x:Name="BtnCreate" Content="Create &amp; Download" Appearance="Primary" Click="BtnCreate_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

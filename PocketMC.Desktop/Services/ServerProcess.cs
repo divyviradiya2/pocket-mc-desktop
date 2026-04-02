@@ -52,19 +52,41 @@ namespace PocketMC.Desktop.Services
             if (State != ServerState.Stopped && State != ServerState.Crashed)
                 throw new InvalidOperationException($"Cannot start server — current state is {State}.");
 
-            // Resolve Java path (Phase 4 stub — expects manual placement)
-            string javaPath = Path.Combine(appRootPath, "runtime", "java21", "bin", "java.exe");
+            string jreFolder = "java21";
+            if (System.Version.TryParse(meta.MinecraftVersion.Replace("1.X", "1.0").Split('-')[0], out var versionParts))
+            {
+                if (versionParts.Minor <= 17) jreFolder = "java11";
+                else if (versionParts.Minor <= 20 && versionParts.Build <= 4) jreFolder = "java17";
+            }
+            if (meta.MinecraftVersion.StartsWith("1.20.4") || meta.MinecraftVersion.StartsWith("1.20.3")) jreFolder = "java17";
+
+            string javaPath = Path.Combine(appRootPath, "runtime", jreFolder, "bin", "java.exe");
             if (!File.Exists(javaPath))
             {
                 throw new FileNotFoundException(
-                    $"Java runtime not found for testing.\n\n" +
-                    $"Please place java.exe at:\n{javaPath}\n\n" +
-                    $"Phase 4 will automate this download.");
+                    $"Java runtime not found for {meta.MinecraftVersion}.\n\n" +
+                    $"Expected path: {javaPath}\n\n");
             }
 
-            string workingDir = Path.Combine(appRootPath, "servers", meta.Id.ToString());
-            if (!Directory.Exists(workingDir))
-                Directory.CreateDirectory(workingDir);
+            string serversDir = Path.Combine(appRootPath, "servers");
+            string? workingDir = null;
+            if (Directory.Exists(serversDir))
+            {
+                foreach (var dir in Directory.GetDirectories(serversDir))
+                {
+                    string metaFile = Path.Combine(dir, ".pocket-mc.json");
+                    if (File.Exists(metaFile) && File.ReadAllText(metaFile).Contains(meta.Id.ToString()))
+                    {
+                        workingDir = dir;
+                        break;
+                    }
+                }
+            }
+
+            if (workingDir == null)
+            {
+                throw new DirectoryNotFoundException($"Could not locate directory for instance {meta.Name}.");
+            }
 
             string serverJar = Path.Combine(workingDir, "server.jar");
             if (!File.Exists(serverJar))

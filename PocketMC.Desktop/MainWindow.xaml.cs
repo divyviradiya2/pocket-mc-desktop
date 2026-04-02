@@ -47,7 +47,7 @@ namespace PocketMC.Desktop
                 }
             }
 
-            RootFrame.Navigate(new DashboardPage(settings.AppRootPath));
+            RootFrame.Navigate(new JavaSetupPage(settings.AppRootPath));
         }
     }
 }

@@ -23,9 +23,12 @@ D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\P
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\ref\PocketMC.Desktop.dll
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\App.baml
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\DashboardPage.g.cs
-D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\GeneratedInternalTypeHelper.g.cs
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\DashboardPage.baml
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\ServerSettingsPage.baml
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\ServerSettingsPage.g.cs
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\ServerConsolePage.baml
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\ServerConsolePage.g.cs
+D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\JavaSetupPage.baml
+D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\JavaSetupPage.g.cs
+D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\NewInstanceDialog.baml
+D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\NewInstanceDialog.g.cs

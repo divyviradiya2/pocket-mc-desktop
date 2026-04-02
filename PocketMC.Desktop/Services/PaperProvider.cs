@@ -1,0 +1,70 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
+using PocketMC.Desktop.Models;
+
+namespace PocketMC.Desktop.Services
+{
+    public class PaperProvider : IServerJarProvider
+    {
+        private readonly HttpClient _httpClient;
+        private readonly DownloaderService _downloader;
+
+        public string DisplayName => "Paper (High Performance)";
+
+        public PaperProvider()
+        {
+            _httpClient = new HttpClient();
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop");
+            _downloader = new DownloaderService();
+        }
+
+        public async Task<List<MinecraftVersion>> GetAvailableVersionsAsync()
+        {
+            string json = await _httpClient.GetStringAsync("https://api.papermc.io/v2/projects/paper");
+            var root = JsonNode.Parse(json);
+            var versionsArray = root?["versions"]?.AsArray();
+
+            var versions = new List<MinecraftVersion>();
+            if (versionsArray != null)
+            {
+                // Paper provides an array of version strings, older to newer
+                foreach (var v in versionsArray.Reverse())
+                {
+                    if (v == null) continue;
+                    
+                    versions.Add(new MinecraftVersion
+                    {
+                        Id = v.ToString(),
+                        Type = "release", // Paper only releases for stable/semi-stable versions usually
+                        ReleaseTime = DateTime.MinValue // Paper API doesn't provide release time at this endpoint easily
+                    });
+                }
+            }
+
+            return versions;
+        }
+
+        public async Task DownloadJarAsync(string mcVersion, string destinationPath, IProgress<DownloadProgress>? progress = null)
+        {
+            // Get latest build
+            string versionJson = await _httpClient.GetStringAsync($"https://api.papermc.io/v2/projects/paper/versions/{mcVersion}");
+            var root = JsonNode.Parse(versionJson);
+            var buildsArray = root?["builds"]?.AsArray();
+
+            if (buildsArray == null || buildsArray.Count == 0)
+                throw new Exception($"No builds found for Paper version {mcVersion}.");
+
+            // Assuming builds are in order, or we take the highest integer
+            int maxBuild = buildsArray.Max(b => (int)b!);
+
+            string jarName = $"paper-{mcVersion}-{maxBuild}.jar";
+            string downloadUrl = $"https://api.papermc.io/v2/projects/paper/versions/{mcVersion}/builds/{maxBuild}/downloads/{jarName}";
+
+            await _downloader.DownloadFileAsync(downloadUrl, destinationPath, progress);
+        }
+    }
+}

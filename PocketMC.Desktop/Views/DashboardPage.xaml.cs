@@ -220,31 +220,13 @@ namespace PocketMC.Desktop.Views
             return null;
         }
 
-        private async void BtnNewInstance_Click(object sender, RoutedEventArgs e)
+        private void BtnNewInstance_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new Wpf.Ui.Controls.MessageBox
+            var dialog = new NewInstanceDialog(_instanceManager, _appRootPath);
+            dialog.Owner = Window.GetWindow(this);
+            if (dialog.ShowDialog() == true)
             {
-                Title = "New Server Instance",
-                Content = "Name for the new instance:",
-                PrimaryButtonText = "Create",
-                CloseButtonText = "Cancel"
-            };
-
-            var stackPanel = new StackPanel();
-            var txtName = new Wpf.Ui.Controls.TextBox { PlaceholderText = "Server Name" };
-            var txtDesc = new Wpf.Ui.Controls.TextBox { PlaceholderText = "Description", Margin = new Thickness(0, 10, 0, 0) };
-            stackPanel.Children.Add(txtName);
-            stackPanel.Children.Add(txtDesc);
-            dialog.Content = stackPanel;
-
-            var result = await dialog.ShowDialogAsync();
-            if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
-            {
-                if (!string.IsNullOrWhiteSpace(txtName.Text))
-                {
-                    _instanceManager.CreateInstance(txtName.Text, txtDesc.Text);
-                    LoadInstances();
-                }
+                LoadInstances();
             }
         }
 
