@@ -14,6 +14,13 @@ namespace PocketMC.Desktop.Services
     public static class ServerProcessManager
     {
         private static readonly JobObject _jobObject = new();
+
+        /// <summary>
+        /// Shared Windows Job Object for attaching child processes.
+        /// Public so that other coordinators (e.g. PlayitCoordinator) can register
+        /// their processes without fragile reflection.
+        /// </summary>
+        public static JobObject SharedJobObject => _jobObject;
         private static readonly ConcurrentDictionary<Guid, ServerProcess> _activeProcesses = new();
         
         // Auto-Restart Tracking State
