@@ -171,5 +171,16 @@ namespace PocketMC.Desktop.Services
                 });
             }
         }
+
+        public void AcceptEula(string folderName)
+        {
+            var folderPath = Path.Combine(_serversDirectory, folderName);
+            if (Directory.Exists(folderPath))
+            {
+                File.WriteAllText(Path.Combine(folderPath, "eula.txt"), 
+                    "# By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).\n" +
+                    "eula=true\n");
+            }
+        }
     }
 }

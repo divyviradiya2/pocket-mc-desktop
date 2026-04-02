@@ -26,3 +26,5 @@ D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\A
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\DashboardPage.g.cs
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\GeneratedInternalTypeHelper.g.cs
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\DashboardPage.baml
+D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\ServerSettingsPage.baml
+D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\ServerSettingsPage.g.cs

@@ -14,10 +14,12 @@ namespace PocketMC.Desktop.Views
     public partial class DashboardPage : Page
     {
         private readonly InstanceManager _instanceManager;
+        private readonly string _appRootPath;
 
         public DashboardPage(string appRootPath)
         {
             InitializeComponent();
+            _appRootPath = appRootPath;
             _instanceManager = new InstanceManager(appRootPath);
             LoadInstances();
         }
@@ -35,6 +37,27 @@ namespace PocketMC.Desktop.Views
                 btn.ContextMenu.PlacementTarget = btn;
                 btn.ContextMenu.IsOpen = true;
             }
+        }
+
+        private void BtnManage_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.CommandParameter is InstanceMetadata metadata)
+            {
+                NavigateToSettings(metadata);
+            }
+        }
+
+        private void InstanceCard_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement element && element.Tag is InstanceMetadata metadata)
+            {
+                NavigateToSettings(metadata);
+            }
+        }
+
+        private void NavigateToSettings(InstanceMetadata metadata)
+        {
+            NavigationService.Navigate(new ServerSettingsPage(metadata, _appRootPath));
         }
 
         private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
@@ -70,18 +93,24 @@ namespace PocketMC.Desktop.Views
             }
         }
 
-        private string FindFolderById(System.Guid id)
+        private string? FindFolderById(System.Guid id)
         {
-            // Simple lookup for the exact directory having this Id
-            var dirPath = System.IO.Path.Combine(
-                new SettingsManager().Load().AppRootPath, "servers");
+            var settings = new SettingsManager().Load();
+            if (string.IsNullOrEmpty(settings.AppRootPath)) return null;
+
+            var dirPath = System.IO.Path.Combine(settings.AppRootPath, "servers");
+            if (!System.IO.Directory.Exists(dirPath)) return null;
                 
             foreach (var dir in System.IO.Directory.GetDirectories(dirPath))
             {
-                var content = System.IO.File.ReadAllText(System.IO.Path.Combine(dir, ".pocket-mc.json"));
-                if (content.Contains(id.ToString()))
+                var metaFile = System.IO.Path.Combine(dir, ".pocket-mc.json");
+                if (System.IO.File.Exists(metaFile))
                 {
-                    return new System.IO.DirectoryInfo(dir).Name;
+                    var content = System.IO.File.ReadAllText(metaFile);
+                    if (content.Contains(id.ToString()))
+                    {
+                        return new System.IO.DirectoryInfo(dir).Name;
+                    }
                 }
             }
             return null;
