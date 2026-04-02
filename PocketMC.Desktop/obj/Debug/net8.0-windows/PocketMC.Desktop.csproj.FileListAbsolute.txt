@@ -8,7 +8,6 @@ D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\P
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\MainWindow.g.cs
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\App.g.cs
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\PocketMC.Desktop_MarkupCompile.cache
-D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\PocketMC.Desktop_MarkupCompile.lref
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\MainWindow.baml
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\PocketMC.Desktop.g.resources
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\PocketMC.Desktop.GeneratedMSBuildEditorConfig.editorconfig
@@ -28,3 +27,5 @@ D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\G
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\DashboardPage.baml
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\ServerSettingsPage.baml
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\ServerSettingsPage.g.cs
+D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\ServerConsolePage.baml
+D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\obj\Debug\net8.0-windows\Views\ServerConsolePage.g.cs

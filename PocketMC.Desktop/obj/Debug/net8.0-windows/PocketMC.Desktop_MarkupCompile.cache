@@ -10,11 +10,11 @@ none
 false
 TRACE;DEBUG;NET;NET8_0;NETCOREAPP
 D:\Coding\Projects\pocket-mc-dekstop\PocketMC.Desktop\App.xaml
-3204295522
+41134675655
 
-131924915424
+17764977656
 199-1658107047
-MainWindow.xaml;Views\DashboardPage.xaml;Views\ServerSettingsPage.xaml;
+MainWindow.xaml;Views\DashboardPage.xaml;Views\ServerConsolePage.xaml;Views\ServerSettingsPage.xaml;
 
 False
 

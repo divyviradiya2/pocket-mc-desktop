@@ -1,0 +1,204 @@
+using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using PocketMC.Desktop.Models;
+
+namespace PocketMC.Desktop.Services
+{
+    /// <summary>
+    /// Represents the lifecycle state of a managed Minecraft server.
+    /// </summary>
+    public enum ServerState
+    {
+        Stopped,
+        Starting,
+        Online,
+        Stopping,
+        Crashed
+    }
+
+    /// <summary>
+    /// Wraps a single Minecraft server process with strict ProcessStartInfo configuration.
+    /// No shell intermediaries (cmd.exe, PowerShell) are used.
+    /// </summary>
+    public class ServerProcess : IDisposable
+    {
+        private Process? _process;
+        private readonly JobObject _jobObject;
+        private bool _disposed;
+        private bool _intentionalStop;
+
+        public Guid InstanceId { get; }
+        public ServerState State { get; private set; } = ServerState.Stopped;
+        public ConcurrentQueue<string> OutputBuffer { get; } = new();
+
+        public event Action<string>? OnOutputLine;
+        public event Action<string>? OnErrorLine;
+        public event Action<int>? OnExited;
+        public event Action<ServerState>? OnStateChanged;
+
+        public ServerProcess(Guid instanceId, JobObject jobObject)
+        {
+            InstanceId = instanceId;
+            _jobObject = jobObject;
+        }
+
+        public void Start(InstanceMetadata meta, string appRootPath)
+        {
+            if (State != ServerState.Stopped && State != ServerState.Crashed)
+                throw new InvalidOperationException($"Cannot start server — current state is {State}.");
+
+            // Resolve Java path (Phase 4 stub — expects manual placement)
+            string javaPath = Path.Combine(appRootPath, "runtime", "java21", "bin", "java.exe");
+            if (!File.Exists(javaPath))
+            {
+                throw new FileNotFoundException(
+                    $"Java runtime not found for testing.\n\n" +
+                    $"Please place java.exe at:\n{javaPath}\n\n" +
+                    $"Phase 4 will automate this download.");
+            }
+
+            string workingDir = Path.Combine(appRootPath, "servers", meta.Id.ToString());
+            if (!Directory.Exists(workingDir))
+                Directory.CreateDirectory(workingDir);
+
+            string serverJar = Path.Combine(workingDir, "server.jar");
+            if (!File.Exists(serverJar))
+            {
+                throw new FileNotFoundException(
+                    $"server.jar not found in:\n{workingDir}\n\n" +
+                    $"Please download a Minecraft server JAR and place it there.");
+            }
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = javaPath,
+                Arguments = $"-Xms{meta.MinRamMb}M -Xmx{meta.MaxRamMb}M -jar server.jar nogui",
+                WorkingDirectory = workingDir,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                RedirectStandardInput = true,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8
+            };
+
+            SetState(ServerState.Starting);
+            _intentionalStop = false;
+
+            _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+            _process.Exited += OnProcessExited;
+            _process.Start();
+
+            // Attach to job object so it dies with us
+            try { _jobObject.AddProcess(_process.Handle); }
+            catch { /* Job object may fail on some configs — process still managed */ }
+
+            // Start background readers
+            Task.Run(() => ReadStreamAsync(_process.StandardOutput, false));
+            Task.Run(() => ReadStreamAsync(_process.StandardError, true));
+        }
+
+        public async Task WriteInputAsync(string command)
+        {
+            if (_process != null && !_process.HasExited)
+            {
+                await _process.StandardInput.WriteLineAsync(command);
+            }
+        }
+
+        public async Task StopAsync(int timeoutMs = 15000)
+        {
+            if (_process == null || _process.HasExited) return;
+
+            _intentionalStop = true;
+            SetState(ServerState.Stopping);
+
+            // Send graceful /stop command
+            await WriteInputAsync("stop");
+
+            // Wait for exit
+            using var cts = new CancellationTokenSource(timeoutMs);
+            try
+            {
+                await _process.WaitForExitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Force kill if it doesn't stop in time
+                try { _process.Kill(entireProcessTree: true); } catch { }
+            }
+
+            SetState(ServerState.Stopped);
+        }
+
+        public void Kill()
+        {
+            if (_process != null && !_process.HasExited)
+            {
+                _intentionalStop = true;
+                try { _process.Kill(entireProcessTree: true); } catch { }
+                SetState(ServerState.Stopped);
+            }
+        }
+
+        private async Task ReadStreamAsync(StreamReader reader, bool isError)
+        {
+            try
+            {
+                string? line;
+                while ((line = await reader.ReadLineAsync()) != null)
+                {
+                    OutputBuffer.Enqueue(line);
+                    if (isError)
+                        OnErrorLine?.Invoke(line);
+                    else
+                    {
+                        OnOutputLine?.Invoke(line);
+
+                        // Detect "Done!" log line to transition to Online
+                        if (State == ServerState.Starting && line.Contains("Done ("))
+                            SetState(ServerState.Online);
+                    }
+                }
+            }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
+        }
+
+        private void OnProcessExited(object? sender, EventArgs e)
+        {
+            int exitCode = _process?.ExitCode ?? -1;
+
+            if (_intentionalStop || exitCode == 0)
+                SetState(ServerState.Stopped);
+            else
+                SetState(ServerState.Crashed);
+
+            OnExited?.Invoke(exitCode);
+        }
+
+        private void SetState(ServerState newState)
+        {
+            if (State != newState)
+            {
+                State = newState;
+                OnStateChanged?.Invoke(newState);
+            }
+        }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _disposed = true;
+                Kill();
+                _process?.Dispose();
+            }
+        }
+    }
+}

@@ -13,6 +13,13 @@ namespace PocketMC.Desktop
             InitializeComponent();
             Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this);
             Wpf.Ui.Appearance.ApplicationThemeManager.Apply(this);
+            Closing += MainWindow_Closing;
+        }
+
+        private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            // Kill all managed server processes on app close
+            ServerProcessManager.KillAll();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

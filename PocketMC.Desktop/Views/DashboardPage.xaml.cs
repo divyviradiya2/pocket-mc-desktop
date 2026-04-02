@@ -1,5 +1,9 @@
+using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Wpf.Ui.Controls;
 using PocketMC.Desktop.Services;
 using PocketMC.Desktop.Models;
@@ -11,10 +15,75 @@ using MessageBoxResult = System.Windows.MessageBoxResult;
 
 namespace PocketMC.Desktop.Views
 {
+    /// <summary>
+    /// ViewModel wrapper for InstanceMetadata that adds live state tracking.
+    /// </summary>
+    public class InstanceCardViewModel : INotifyPropertyChanged
+    {
+        private readonly InstanceMetadata _metadata;
+        private ServerState _state = ServerState.Stopped;
+
+        public InstanceCardViewModel(InstanceMetadata metadata)
+        {
+            _metadata = metadata;
+
+            // Sync initial state from ServerProcessManager
+            if (ServerProcessManager.IsRunning(metadata.Id))
+            {
+                var proc = ServerProcessManager.GetProcess(metadata.Id);
+                _state = proc?.State ?? ServerState.Stopped;
+            }
+        }
+
+        public InstanceMetadata Metadata => _metadata;
+        public Guid Id => _metadata.Id;
+        public string Name => _metadata.Name;
+        public string Description => _metadata.Description;
+
+        public bool IsRunning => _state == ServerState.Starting || _state == ServerState.Online || _state == ServerState.Stopping;
+
+        public string StatusText => _state switch
+        {
+            ServerState.Stopped => "● Stopped",
+            ServerState.Starting => "◉ Starting...",
+            ServerState.Online => "● Online",
+            ServerState.Stopping => "◉ Stopping...",
+            ServerState.Crashed => "✖ Crashed",
+            _ => "Unknown"
+        };
+
+        public Brush StatusColor => _state switch
+        {
+            ServerState.Online => Brushes.LimeGreen,
+            ServerState.Starting or ServerState.Stopping => Brushes.Orange,
+            ServerState.Crashed => Brushes.Red,
+            _ => Brushes.Gray
+        };
+
+        public void UpdateState(ServerState newState)
+        {
+            _state = newState;
+            OnPropertyChanged(nameof(IsRunning));
+            OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(StatusColor));
+        }
+
+        public void RefreshNameDescription()
+        {
+            OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(Description));
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged(string prop) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+    }
+
     public partial class DashboardPage : Page
     {
         private readonly InstanceManager _instanceManager;
         private readonly string _appRootPath;
+        private ObservableCollection<InstanceCardViewModel> _viewModels = new();
 
         public DashboardPage(string appRootPath)
         {
@@ -22,18 +91,41 @@ namespace PocketMC.Desktop.Views
             _appRootPath = appRootPath;
             _instanceManager = new InstanceManager(appRootPath);
             LoadInstances();
+
+            // Subscribe to global state changes
+            ServerProcessManager.OnInstanceStateChanged += OnServerStateChanged;
         }
 
         private void LoadInstances()
         {
             var instances = _instanceManager.GetAllInstances();
-            InstanceGrid.ItemsSource = instances;
+            _viewModels = new ObservableCollection<InstanceCardViewModel>(
+                instances.Select(m => new InstanceCardViewModel(m)));
+            InstanceGrid.ItemsSource = _viewModels;
+        }
+
+        private void OnServerStateChanged(Guid instanceId, ServerState newState)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                var vm = _viewModels.FirstOrDefault(v => v.Id == instanceId);
+                vm?.UpdateState(newState);
+            });
+        }
+
+        // --- Helper to get ViewModel from sender ---
+        private InstanceCardViewModel? GetViewModel(object sender)
+        {
+            if (sender is FrameworkElement element && element.DataContext is InstanceCardViewModel vm)
+                return vm;
+            return null;
         }
 
         private void BtnMoreOptions_Click(object sender, RoutedEventArgs e)
         {
             if (sender is System.Windows.Controls.Button btn && btn.ContextMenu != null)
             {
+                btn.ContextMenu.DataContext = btn.DataContext;
                 btn.ContextMenu.PlacementTarget = btn;
                 btn.ContextMenu.IsOpen = true;
             }
@@ -41,66 +133,80 @@ namespace PocketMC.Desktop.Views
 
         private void BtnManage_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is System.Windows.Controls.Button btn && btn.CommandParameter is InstanceMetadata metadata)
-            {
-                NavigateToSettings(metadata);
-            }
-        }
-
-        private void InstanceCard_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is FrameworkElement element && element.Tag is InstanceMetadata metadata)
-            {
-                NavigateToSettings(metadata);
-            }
-        }
-
-        private void NavigateToSettings(InstanceMetadata metadata)
-        {
-            NavigationService.Navigate(new ServerSettingsPage(metadata, _appRootPath));
+            var vm = GetViewModel(sender);
+            if (vm != null)
+                NavigationService.Navigate(new ServerSettingsPage(vm.Metadata, _appRootPath));
         }
 
         private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is System.Windows.Controls.Button btn && btn.CommandParameter is InstanceMetadata metadata)
+            var vm = GetViewModel(sender);
+            if (vm != null)
             {
-                // We know InstanceManager relies on folder names (slugs) to find them, derived from Name and id.
-                // Wait, InstanceManager.OpenInExplorer takes the slugified folder name.
-                // We can recalculate it or scan, but for now we look up the folder by generating slug? No.
-                // Wait! To open the exact folder, we need the slug. But we only have `InstanceMetadata`.
-                // Let's modify InstanceManager to find it or we can pass the slug.
-                // The requirements say instance files live under `<APP_ROOT>/servers/<slug>/`.
-                // But `InstanceMetadata` doesn't currently store the `<slug>`. 
-                // Let's let the `InstanceManager` do a folder lookup by `.pocket-mc.json` UUID.
-                
-                // For the scope of this file: let's quickly regenerate slug or we assume the folder name.
-                // Actually, let's just make InstanceManager do the job based on Id for safety.
-                // For now, I will use a simple workaround to find folder by Id.
-                var allInstances = _instanceManager.GetAllInstances(); // we probably should store FolderName but ok
-                // In a proper implementation, InstanceMetadata returned would have a FolderName not serialized,
-                // but we can just tell InstanceManager about it.
-                // To keep it simple, I'll pass the Name, assuming it didn't change enough to lose the slug,
-                // BUT renaming preserves slug.
-                
-                // Let's implement this method directly:
-                // We need the folder name. I'll add `FolderName` implicitly if I adjust InstanceManager later.
-                // Right now, I'll look through folders ourselves.
-                string folderName = FindFolderById(metadata.Id);
+                string? folderName = FindFolderById(vm.Id);
                 if (folderName != null)
-                {
                     _instanceManager.OpenInExplorer(folderName);
-                }
             }
         }
 
-        private string? FindFolderById(System.Guid id)
+        private void BtnStart_Click(object sender, RoutedEventArgs e)
+        {
+            var vm = GetViewModel(sender);
+            if (vm == null) return;
+
+            try
+            {
+                ServerProcessManager.StartProcess(vm.Metadata, _appRootPath);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    ex.Message,
+                    "Cannot Start Server",
+                    MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+            }
+        }
+
+        private async void BtnStop_Click(object sender, RoutedEventArgs e)
+        {
+            var vm = GetViewModel(sender);
+            if (vm == null) return;
+
+            try
+            {
+                await ServerProcessManager.StopProcessAsync(vm.Id);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    ex.Message,
+                    "Stop Error",
+                    MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnConsole_Click(object sender, RoutedEventArgs e)
+        {
+            var vm = GetViewModel(sender);
+            if (vm == null) return;
+
+            var process = ServerProcessManager.GetProcess(vm.Id);
+            if (process != null)
+            {
+                NavigationService.Navigate(new ServerConsolePage(vm.Metadata, process));
+            }
+        }
+
+        private string? FindFolderById(Guid id)
         {
             var settings = new SettingsManager().Load();
             if (string.IsNullOrEmpty(settings.AppRootPath)) return null;
 
             var dirPath = System.IO.Path.Combine(settings.AppRootPath, "servers");
             if (!System.IO.Directory.Exists(dirPath)) return null;
-                
+
             foreach (var dir in System.IO.Directory.GetDirectories(dirPath))
             {
                 var metaFile = System.IO.Path.Combine(dir, ".pocket-mc.json");
@@ -108,9 +214,7 @@ namespace PocketMC.Desktop.Views
                 {
                     var content = System.IO.File.ReadAllText(metaFile);
                     if (content.Contains(id.ToString()))
-                    {
                         return new System.IO.DirectoryInfo(dir).Name;
-                    }
                 }
             }
             return null;
@@ -118,7 +222,6 @@ namespace PocketMC.Desktop.Views
 
         private async void BtnNewInstance_Click(object sender, RoutedEventArgs e)
         {
-            // Wpf Dialog
             var dialog = new Wpf.Ui.Controls.MessageBox
             {
                 Title = "New Server Instance",
@@ -127,9 +230,6 @@ namespace PocketMC.Desktop.Views
                 CloseButtonText = "Cancel"
             };
 
-            // In WPF-UI 3.0, we use Content Dialogs or custom windows for text input.
-            // For simplicity, we just use a basic text prompt logic or native input box if available.
-            // I'll create a TextBox dynamically.
             var stackPanel = new StackPanel();
             var txtName = new Wpf.Ui.Controls.TextBox { PlaceholderText = "Server Name" };
             var txtDesc = new Wpf.Ui.Controls.TextBox { PlaceholderText = "Description", Margin = new Thickness(0, 10, 0, 0) };
@@ -150,55 +250,71 @@ namespace PocketMC.Desktop.Views
 
         private void DeleteInstance_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem menuItem && menuItem.CommandParameter is InstanceMetadata metadata)
+            InstanceCardViewModel? vm = null;
+            if (sender is MenuItem menuItem && menuItem.DataContext is InstanceCardViewModel mvm)
+                vm = mvm;
+            
+            if (vm == null) return;
+
+            if (ServerProcessManager.IsRunning(vm.Id))
             {
-                var prompt = System.Windows.MessageBox.Show(
-                    "Are you sure you want to completely erase the " + metadata.Name + " server? All worlds and files will be permanently deleted.",
-                    "Delete Server",
-                    MessageBoxButton.YesNo,
+                System.Windows.MessageBox.Show(
+                    "Cannot delete a running server. Stop it first.",
+                    "Server Running",
+                    MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Warning);
-                
-                if (prompt == MessageBoxResult.Yes)
+                return;
+            }
+
+            var prompt = System.Windows.MessageBox.Show(
+                "Are you sure you want to completely erase the " + vm.Name + " server? All worlds and files will be permanently deleted.",
+                "Delete Server",
+                MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning);
+
+            if (prompt == MessageBoxResult.Yes)
+            {
+                var folder = FindFolderById(vm.Id);
+                if (folder != null)
                 {
-                    var folder = FindFolderById(metadata.Id);
-                    if (folder != null)
-                    {
-                        _instanceManager.DeleteInstance(folder);
-                        LoadInstances();
-                    }
+                    _instanceManager.DeleteInstance(folder);
+                    LoadInstances();
                 }
             }
         }
 
         private async void RenameInstance_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem menuItem && menuItem.CommandParameter is InstanceMetadata metadata)
+            InstanceCardViewModel? vm = null;
+            if (sender is MenuItem menuItem && menuItem.DataContext is InstanceCardViewModel mvm)
+                vm = mvm;
+            
+            if (vm == null) return;
+
+            var dialog = new Wpf.Ui.Controls.MessageBox
             {
-                var dialog = new Wpf.Ui.Controls.MessageBox
-                {
-                    Title = "Rename Server",
-                    PrimaryButtonText = "Save",
-                    CloseButtonText = "Cancel"
-                };
+                Title = "Rename Server",
+                PrimaryButtonText = "Save",
+                CloseButtonText = "Cancel"
+            };
 
-                var stackPanel = new StackPanel();
-                var txtName = new Wpf.Ui.Controls.TextBox { Text = metadata.Name };
-                var txtDesc = new Wpf.Ui.Controls.TextBox { Text = metadata.Description, Margin = new Thickness(0, 10, 0, 0) };
-                stackPanel.Children.Add(txtName);
-                stackPanel.Children.Add(txtDesc);
-                dialog.Content = stackPanel;
+            var stackPanel = new StackPanel();
+            var txtName = new Wpf.Ui.Controls.TextBox { Text = vm.Name };
+            var txtDesc = new Wpf.Ui.Controls.TextBox { Text = vm.Description, Margin = new Thickness(0, 10, 0, 0) };
+            stackPanel.Children.Add(txtName);
+            stackPanel.Children.Add(txtDesc);
+            dialog.Content = stackPanel;
 
-                var result = await dialog.ShowDialogAsync();
-                if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
+            var result = await dialog.ShowDialogAsync();
+            if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
+            {
+                if (!string.IsNullOrWhiteSpace(txtName.Text))
                 {
-                    if (!string.IsNullOrWhiteSpace(txtName.Text))
+                    var folder = FindFolderById(vm.Id);
+                    if (folder != null)
                     {
-                        var folder = FindFolderById(metadata.Id);
-                        if (folder != null)
-                        {
-                            _instanceManager.UpdateMetadata(folder, txtName.Text, txtDesc.Text);
-                            LoadInstances();
-                        }
+                        _instanceManager.UpdateMetadata(folder, txtName.Text, txtDesc.Text);
+                        LoadInstances();
                     }
                 }
             }
