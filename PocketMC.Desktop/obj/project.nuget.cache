@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "3iHBqb2jmBM=",
+  "success": true,
+  "projectFilePath": "D:\\Coding\\Projects\\pocket-mc-dekstop\\PocketMC.Desktop\\PocketMC.Desktop.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\divy\\.nuget\\packages\\wpf-ui\\3.0.4\\wpf-ui.3.0.4.nupkg.sha512"
+  ],
+  "logs": []
+}
