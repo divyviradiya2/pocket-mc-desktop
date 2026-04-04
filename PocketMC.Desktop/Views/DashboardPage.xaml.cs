@@ -161,6 +161,12 @@ namespace PocketMC.Desktop.Views
         private readonly string _appRootPath;
         private ObservableCollection<InstanceCardViewModel> _viewModels = new();
 
+        /// <summary>
+        /// App-scoped Playit agent — started once, lives for app lifetime (NET-02).
+        /// Static so other services (TunnelService) can reference it.
+        /// </summary>
+        public static PlayitAgentService? PlayitAgent { get; private set; }
+
         public DashboardPage(string appRootPath)
         {
             InitializeComponent();
@@ -172,6 +178,35 @@ namespace PocketMC.Desktop.Views
             ServerProcessManager.OnInstanceStateChanged += OnServerStateChanged;
             ServerProcessManager.OnRestartCountdownTick += OnRestartCountdownTick;
             MainWindow.GlobalMonitor.OnGlobalMetricsUpdated += UpdateMetrics;
+
+            // Start Playit agent if not already running (NET-02)
+            InitializePlayitAgent();
+        }
+
+        /// <summary>
+        /// Initializes and starts the Playit.gg background agent (NET-02).
+        /// Subscribes to claim URL events to show the guide window (NET-03).
+        /// </summary>
+        private void InitializePlayitAgent()
+        {
+            if (PlayitAgent != null) return; // Already initialized
+
+            string playitPath = System.IO.Path.Combine(_appRootPath, "tunnel", "playit.exe");
+            if (!System.IO.File.Exists(playitPath)) return; // Not downloaded yet
+
+            PlayitAgent = new PlayitAgentService(_appRootPath, new JobObject());
+
+            // When claim URL is detected, show the guide window (NET-03)
+            PlayitAgent.OnClaimUrlReceived += (sender, claimUrl) =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    var guideWindow = new PlayitGuideWindow(PlayitAgent, claimUrl);
+                    guideWindow.Show();
+                });
+            };
+
+            PlayitAgent.Start();
         }
 
         private void UpdateMetrics()
