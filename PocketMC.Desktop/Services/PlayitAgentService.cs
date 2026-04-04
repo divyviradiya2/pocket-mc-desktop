@@ -162,16 +162,34 @@ namespace PocketMC.Desktop.Services
                 {
                     Log("STDOUT: " + line);
 
-                    // Auto-reply to invalid secret prompt to reset `playit.toml` automatically
+                    // Auto-reset when playit has an invalid token.
+                    // Playit uses crossterm bypassing stdin, so piping 'Y' doesn't work.
+                    // Instead, we forcefully delete the secret and restart the process.
                     if (line.Contains("Invalid secret, do you want to reset", StringComparison.OrdinalIgnoreCase))
                     {
-                        Log("INFO: Auto-replying 'Y' to reset invalid secret...");
+                        Log("INFO: Invalid secret detected. Deleting playit.toml and restarting...");
+                        
                         try
                         {
-                            await _agentProcess!.StandardInput.WriteLineAsync("Y");
-                            await _agentProcess!.StandardInput.FlushAsync();
+                            string tomlPath = Path.Combine(
+                                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 
+                                "playit_gg", "playit.toml");
+                            
+                            if (File.Exists(tomlPath))
+                                File.Delete(tomlPath);
                         }
-                        catch { /* Ignore if it closed */ }
+                        catch { /* Ignore delete errors */ }
+
+                        // Schedule a restart (using a fire-and-forget task so we don't block the output reader)
+                        Task.Run(async () =>
+                        {
+                            Stop();
+                            await Task.Delay(500);
+                            Start();
+                        });
+                        
+                        // Break out of this reader loop immediately so we stop processing output for the dying process
+                        break;
                     }
 
                     // Claim URL detection (NET-03, NET-04)
