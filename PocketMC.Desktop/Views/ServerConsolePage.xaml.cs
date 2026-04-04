@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using Wpf.Ui.Controls;
 using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Services;
 
@@ -36,6 +39,11 @@ namespace PocketMC.Desktop.Views
         private const int MAX_LOG_LINES = 10000;
 
         public ObservableCollection<LogLine> Logs { get; } = new();
+        public ObservableCollection<string> CommandSuggestions { get; } = new();
+        private readonly System.Collections.Generic.HashSet<string> _knownCommands = new();
+        private readonly System.Collections.Generic.List<string> _commandHistory = new();
+        private int _historyIndex = -1;
+        private string _pendingCommandText = string.Empty;
 
         public string ServerName => _metadata.Name;
         public string StatusText => _serverProcess.State switch
@@ -93,11 +101,83 @@ namespace PocketMC.Desktop.Views
                 TxtCrashLog.Text = _serverProcess.CrashContext;
                 CrashBanner.Visibility = Visibility.Visible;
             }
+
+            // 4. Initialize command suggestions
+            InitializeDefaultCommands();
+
+            // 5. Connect GotFocus for immediate suggestions
+            TxtCommand.GotFocus += TxtCommand_GotFocus;
+        }
+
+        private void TxtCommand_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(TxtCommand.Text))
+            {
+                // Show common commands
+                var common = new[] { "list", "stop", "help", "save-all", "op", "whitelist" };
+                TxtCommand.ItemsSource = common;
+            }
+            
+            // Try to force dropdown open if any items
+            if (TxtCommand.ItemsSource != null) {
+                // In WPF-UI 3.x, TxtCommand might have a property to show suggestions manually
+                // or it might just show them automatically if they are present.
+            }
+        }
+
+        private void InitializeDefaultCommands()
+        {
+            var defaults = new[]
+            {
+                "advancement", "attribute", "ban", "ban-ip", "banlist", "bossbar", "clear", "clone", "data", "datapack",
+                "debug", "defaultgamemode", "deop", "difficulty", "effect", "enchant", "execute", "expr", "fill",
+                "forceload", "function", "gamemode", "gamerule", "give", "help", "item", "jfr", "kick", "kill", "list",
+                "locate", "loot", "me", "msg", "op", "pardon", "pardon-ip", "particle", "perf", "place", "recipe",
+                "reload", "ride", "save-all", "save-off", "save-on", "say", "schedule", "scoreboard", "seed", "setblock",
+                "setidletimeout", "setworldspawn", "spawnpoint", "spectate", "spreadplayers", "stop", "stopsound",
+                "summon", "tag", "team", "teammsg", "teleport", "tell", "tellraw", "tick", "time", "title", "tp",
+                "trigger", "weather", "whitelist", "worldborder"
+            };
+
+            foreach (var cmd in defaults)
+            {
+                _knownCommands.Add(cmd);
+                CommandSuggestions.Add(cmd);
+            }
         }
 
         private void OnOutputReceived(string line)
         {
             _pendingLines.Enqueue(ColorizeLogLine(line));
+            ParseHelpOutput(line);
+        }
+
+        private readonly Regex _helpRegex = new(@"^\/?([a-zA-Z0-9\-_]+)", RegexOptions.Compiled);
+
+        private void ParseHelpOutput(string line)
+        {
+            // Extract the part after the standard Minecraft log template [timestamp INFO]: /...
+            // or [timestamp INFO]: command ... (no slash)
+            int infoIdx = line.IndexOf(" INFO]: ");
+            if (infoIdx == -1) return;
+
+            string content = line.Substring(infoIdx + 8).Trim();
+            if (content.StartsWith('/')) content = content.Substring(1);
+
+            int spaceIdx = content.IndexOf(' ');
+            string cmd = spaceIdx != -1 ? content.Substring(0, spaceIdx) : content;
+            
+            // Clean up common help output chars
+            cmd = cmd.Trim('<', '>', '[', ']', '(', ')', ' ', ':', '-');
+
+            if (!string.IsNullOrEmpty(cmd) && cmd.Length > 1 && _knownCommands.Add(cmd))
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    CommandSuggestions.Add(cmd);
+                    _logger.LogTrace("Added new command from console output: {Command}", cmd);
+                });
+            }
         }
 
         private void OnErrorReceived(string line)
@@ -199,20 +279,120 @@ namespace PocketMC.Desktop.Views
             await SendCommand();
         }
 
+        private void Page_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Intercept '/' key (Oem2 or Divide) to focus command box
+            if ((e.Key == Key.Oem2 || e.Key == Key.Divide) && !TxtCommand.IsFocused)
+            {
+                TxtCommand.Focus();
+                e.Handled = true; // Don't print the '/' in the box - it's a focus shortcut
+            }
+        }
+
         private async void TxtCommand_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {
                 await SendCommand();
                 e.Handled = true;
+                return;
             }
+
+            // Command history navigation
+            if (e.Key == Key.Up || e.Key == Key.Down)
+            {
+                if (_commandHistory.Count == 0) return;
+
+                if (_historyIndex == -1) // Moving from current text to history
+                    _pendingCommandText = TxtCommand.Text;
+
+                if (e.Key == Key.Up)
+                {
+                    _historyIndex++;
+                    if (_historyIndex >= _commandHistory.Count)
+                        _historyIndex = _commandHistory.Count - 1;
+                }
+                else // Key.Down
+                {
+                    _historyIndex--;
+                    if (_historyIndex < -1)
+                        _historyIndex = -1;
+                }
+
+                if (_historyIndex == -1)
+                    TxtCommand.Text = _pendingCommandText;
+                else
+                    TxtCommand.Text = _commandHistory[_commandHistory.Count - 1 - _historyIndex];
+
+                // Set caret to end
+                if (TxtCommand.Text != null)
+                {
+                    // ui:AutoSuggestBox doesn't always have a CaretIndex directly depending on the version
+                    // but often its internal TextBox is accessible or it behaves like a text box.
+                    // If TxtCommand.Text isn't null, WPF usually moves caret to start/end on programmatic change.
+                }
+
+                e.Handled = true;
+            }
+        }
+
+        private void TxtCommand_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs e)
+        {
+            if (e.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+            {
+                string query = TxtCommand.Text;
+                if (string.IsNullOrEmpty(query))
+                {
+                    // If empty, show first few commands or null
+                    TxtCommand_GotFocus(sender, new RoutedEventArgs());
+                    return;
+                }
+
+                // If command has spaces, we're likely in arguments mode, don't show command suggestions
+                if (query.Contains(' '))
+                {
+                    TxtCommand.ItemsSource = null;
+                    return;
+                }
+
+                // Strip leading slash for filtering since the command list doesn't have them
+                string filterQuery = query.StartsWith('/') ? query.Substring(1) : query;
+
+                var filtered = CommandSuggestions
+                    .Where(c => c.StartsWith(filterQuery, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(c => c.Length)
+                    .ToList();
+
+                if (filtered.Count == 0)
+                {
+                    filtered = CommandSuggestions
+                        .Where(c => c.Contains(filterQuery, StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(c => c.Length)
+                        .ToList();
+                }
+                
+                TxtCommand.ItemsSource = filtered;
+            }
+        }
+
+        private void TxtCommand_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs e)
+        {
+            if (e.SelectedItem is string cmd)
+            {
+                TxtCommand.Text = cmd;
+            }
+        }
+
+        private async void TxtCommand_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs e)
+        {
+            await SendCommand();
         }
 
         private void BtnCopyLogs_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                var allText = string.Join(Environment.NewLine, System.Linq.Enumerable.Select(Logs, l => l.Text));
+                var allText = string.Join(Environment.NewLine, Logs.Select(l => l.Text));
                 if (!string.IsNullOrEmpty(allText))
                 {
                     System.Windows.Clipboard.SetText(allText);
@@ -220,7 +400,7 @@ namespace PocketMC.Desktop.Views
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Failed to copy logs: {ex.Message}", "Clipboard Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show($"Failed to copy logs: {ex.Message}", "Clipboard Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
             }
         }
 
@@ -236,6 +416,16 @@ namespace PocketMC.Desktop.Views
         {
             string command = TxtCommand.Text.Trim();
             if (string.IsNullOrEmpty(command)) return;
+
+            // Strip leading '/' before sending to the server console (implicit)
+            if (command.StartsWith('/')) command = command.Substring(1);
+            if (string.IsNullOrEmpty(command)) return;
+
+            // Update history
+            if (_commandHistory.Count == 0 || _commandHistory[^1] != command)
+                _commandHistory.Add(command);
+            
+            _historyIndex = -1;
 
             // Echo the command in the log
             Logs.Add(new LogLine { Text = $"> {command}", TextColor = Brushes.CornflowerBlue });
