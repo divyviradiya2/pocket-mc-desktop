@@ -39,6 +39,24 @@
                 <ui:TextBlock FontTypography="Title" Text="Instances" Foreground="White" Margin="0,0,16,0" VerticalAlignment="Center"/>
                 <ui:Button Content="New Instance" Icon="{ui:SymbolIcon Add24}" Appearance="Primary" Click="BtnNewInstance_Click" Cursor="Hand"/>
             </StackPanel>
+
+            <!-- Playit Health Banner (NET-05, D-02) -->
+            <Border x:Name="PlayitStatusBanner" Visibility="Collapsed" Background="#44F44336" BorderBrush="#88F44336" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,24">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ui:SymbolIcon Symbol="Warning24" Margin="0,0,12,0" Foreground="Red" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TxtPlayitStatus" Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="White">
+                        <Run Text="⚠ Playit.gg Status" FontWeight="Bold"/>
+                        <LineBreak/>
+                        <Run x:Name="TxtPlayitDetail" Text="Token invalid — re-link account to restore tunnel access."/>
+                    </TextBlock>
+                    <ui:Button Grid.Column="2" x:Name="BtnFixPlayit" Content="Fix" Appearance="Secondary" Padding="12,4" Click="BtnFixPlayit_Click" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
         </StackPanel>
         
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">

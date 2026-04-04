@@ -198,33 +198,115 @@ namespace PocketMC.Desktop.Views
 
             // Start Playit agent if not already running (NET-02)
             InitializePlayitAgent();
+
+            // Re-check health whenever we navigate back to this page
+            this.Loaded += (s, e) => _ = CheckPlayitHealthAsync();
         }
 
-        /// <summary>
-        /// Initializes and starts the Playit.gg background agent (NET-02).
-        /// Subscribes to claim URL events to show the guide window (NET-03).
-        /// </summary>
         private void InitializePlayitAgent()
         {
-            if (PlayitAgent != null) return; // Already initialized
-
+            // 1. Check for binary (D-02)
             string playitPath = System.IO.Path.Combine(_appRootPath, "tunnel", "playit.exe");
-            if (!System.IO.File.Exists(playitPath)) return; // Not downloaded yet
-
-            PlayitAgent = new PlayitAgentService(_appRootPath, new JobObject());
-
-            // When claim URL is detected, show the guide window (NET-03)
-            PlayitAgent.OnClaimUrlReceived += (sender, claimUrl) =>
+            if (!System.IO.File.Exists(playitPath))
             {
+                ShowPlayitStatusBanner("⚠ Playit.gg agent not found", "Agent binary missing. Please download it to enable tunnels.", isBinaryMissing: true);
+                return;
+            }
+
+            // 2. Start if not already running (NET-02)
+            if (PlayitAgent == null)
+            {
+                PlayitAgent = new PlayitAgentService(_appRootPath, new JobObject());
+
+                // When claim URL is detected, show the guide window (NET-03)
+                PlayitAgent.OnClaimUrlReceived += (sender, claimUrl) =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        var guideWindow = new PlayitGuideWindow(PlayitAgent, claimUrl);
+                        guideWindow.Owner = Window.GetWindow(this);
+                        guideWindow.Show();
+                    });
+                };
+
+                PlayitAgent.Start();
+            }
+            
+            // 3. Proactive health check (NET-05, D-02)
+            _ = CheckPlayitHealthAsync();
+        }
+
+        private async Task CheckPlayitHealthAsync()
+        {
+            await Task.Delay(3000); // Wait for agent to initialize/load .toml
+            
+            try
+            {
+                var apiClient = new PlayitApiClient();
+                var result = await apiClient.GetTunnelsAsync();
+
                 Dispatcher.Invoke(() =>
                 {
-                    var guideWindow = new PlayitGuideWindow(PlayitAgent, claimUrl);
-                    guideWindow.Owner = Window.GetWindow(this);
-                    guideWindow.Show();
+                    if (result.IsTokenInvalid)
+                    {
+                        ShowPlayitStatusBanner("⚠ Playit.gg: token invalid", "Token is revoked or missing. Re-link account to restore tunnels.", isTokenInvalid: true);
+                    }
+                    else if (result.Success)
+                    {
+                        PlayitStatusBanner.Visibility = Visibility.Collapsed;
+                    }
                 });
-            };
+            }
+            catch { /* Silent fail */ }
+        }
 
-            PlayitAgent.Start();
+        private void ShowPlayitStatusBanner(string title, string detail, bool isTokenInvalid = false, bool isBinaryMissing = false)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                TxtPlayitStatus.Inlines.Clear();
+                TxtPlayitStatus.Inlines.Add(new System.Windows.Documents.Run(title) { FontWeight = FontWeights.Bold });
+                TxtPlayitDetail.Text = detail;
+                PlayitStatusBanner.Visibility = Visibility.Visible;
+                
+                // Tag the button so we know what to do
+                BtnFixPlayit.Tag = isBinaryMissing ? "DOWNLOAD" : "RESET";
+            });
+        }
+
+        private void BtnFixPlayit_Click(object sender, RoutedEventArgs e)
+        {
+            if (BtnFixPlayit.Tag?.ToString() == "DOWNLOAD")
+            {
+                // Open playit.gg download or guide flow
+                Process.Start(new ProcessStartInfo { FileName = "https://playit.gg/download", UseShellExecute = true });
+            }
+            else
+            {
+                // Reset token flow (D-02)
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string tomlPath = System.IO.Path.Combine(appData, "playit_gg", "playit.toml");
+                
+                try
+                {
+                    if (System.IO.File.Exists(tomlPath)) 
+                        System.IO.File.Delete(tomlPath);
+                    
+                    // Restart agent to get a new claim URL
+                    PlayitAgent?.Stop();
+                    // Wait a bit and restart
+                    _ = Task.Run(async () => {
+                        await Task.Delay(500);
+                        Dispatcher.Invoke(() => PlayitAgent?.Start());
+                    });
+                    
+                    PlayitStatusBanner.Visibility = Visibility.Collapsed;
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show("Could not reset Playit config: " + ex.Message);
+                }
+            }
         }
 
         private int _metricTicks = 0;
