@@ -76,6 +76,7 @@ namespace PocketMC.Desktop.Views
                 _isSubscribedToServices = true;
             }
 
+            SyncViewModelStates();
             InitializePlayitAgent();
             _ = RefreshPlayitHealthAsync(TimeSpan.FromSeconds(1), retryCount: 3);
         }
@@ -389,6 +390,15 @@ namespace PocketMC.Desktop.Views
                 instances.Select(m => new InstanceCardViewModel(m, _serverProcessManager)));
             InstanceGrid.ItemsSource = _viewModels;
             TxtEmpty.Visibility = _viewModels.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void SyncViewModelStates()
+        {
+            foreach (var vm in _viewModels)
+            {
+                var currentState = _serverProcessManager.GetProcess(vm.Id)?.State ?? ServerState.Stopped;
+                vm.UpdateState(currentState);
+            }
         }
 
         private void OnServerStateChanged(Guid instanceId, ServerState newState)
