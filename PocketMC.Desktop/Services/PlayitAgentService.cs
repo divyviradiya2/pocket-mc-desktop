@@ -103,6 +103,7 @@ namespace PocketMC.Desktop.Services
             var psi = new ProcessStartInfo
             {
                 FileName = playitPath,
+                Arguments = "--stdout",  // Required: without this flag, playit writes to console buffer directly
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

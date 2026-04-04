@@ -67,7 +67,7 @@ namespace PocketMC.Desktop.Services
         /// </summary>
         public string? GetSecretKey()
         {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string tomlPath = Path.Combine(appData, "playit_gg", "playit.toml");
 
             if (!File.Exists(tomlPath))
