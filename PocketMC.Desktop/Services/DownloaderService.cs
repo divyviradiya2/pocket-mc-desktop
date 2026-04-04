@@ -49,6 +49,24 @@ namespace PocketMC.Desktop.Services
             }
         }
 
+        /// <summary>
+        /// Downloads playit.exe into <appRoot>/tunnel/playit.exe if not already present.
+        /// Called during app startup alongside JRE downloads (NET-01).
+        /// </summary>
+        public async Task EnsurePlayitDownloadedAsync(string appRootPath, IProgress<DownloadProgress>? progress = null)
+        {
+            const string PlayitDownloadUrl = "https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-windows-x86_64.exe";
+
+            string tunnelDir = Path.Combine(appRootPath, "tunnel");
+            string playitPath = Path.Combine(tunnelDir, "playit.exe");
+
+            if (File.Exists(playitPath))
+                return; // Already downloaded — skip (NET-01: version check on every startup)
+
+            Directory.CreateDirectory(tunnelDir);
+            await DownloadFileAsync(PlayitDownloadUrl, playitPath, progress);
+        }
+
         public Task ExtractZipAsync(string zipPath, string extractPath, IProgress<DownloadProgress>? progress = null)
         {
             return Task.Run(() =>
