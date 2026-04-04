@@ -103,7 +103,7 @@ namespace PocketMC.Desktop.Services
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "https://playit.gg/account/tunnels/new",
+                    FileName = "https://playit.gg/account/setup/new-tunnel",
                     UseShellExecute = true
                 });
             }

@@ -31,7 +31,7 @@ namespace PocketMC.Desktop.Views
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "https://playit.gg/account/tunnels",
+                    FileName = "https://playit.gg/account/setup/new-tunnel",
                     UseShellExecute = true
                 });
             }
