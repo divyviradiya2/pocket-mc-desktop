@@ -67,6 +67,11 @@ namespace PocketMC.Desktop.Views
                         SidebarList.SelectedIndex = MainTabControl.SelectedIndex;
                 }
             };
+
+            // Force initial selection (U-FIX: ensures Properties shows up on open)
+            SidebarList.SelectedIndex = 0;
+            MainTabControl.SelectedIndex = 0;
+            RefreshLockStates();
         }
 
         private void SidebarList_SelectionChanged(object sender, SelectionChangedEventArgs e)
