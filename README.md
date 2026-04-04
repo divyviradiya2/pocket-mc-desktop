@@ -3,7 +3,6 @@
 <!-- Replace with your actual logo -->
 <img src="docs/assets/logo.png" alt="PocketMC Logo" width="120" />
 
-# PocketMC Desktop
 
 **A professional Minecraft Java Edition server manager for Windows.**  
 Run, monitor, and share servers from your own machine, no sysadmin skills required.
