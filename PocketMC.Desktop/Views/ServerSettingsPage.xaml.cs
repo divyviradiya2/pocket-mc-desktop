@@ -109,7 +109,10 @@ namespace PocketMC.Desktop.Views
             TxtSeed.Text = props.TryGetValue("level-seed", out var seed) ? seed : "";
             TxtSpawnProtection.Text = props.TryGetValue("spawn-protection", out var prot) ? prot : "16";
             TxtMaxPlayers.Text = props.TryGetValue("max-players", out var mp) ? mp : "20";
-            TxtServerPort.Text = props.TryGetValue("server-port", out var port) ? port : "25565";
+            
+            string portString = props.TryGetValue("server-port", out var port) ? port : "25565";
+            TxtServerPort.Text = portString;
+            
             TxtServerIp.Text = props.TryGetValue("server-ip", out var ip) ? ip : "";
 
             if (props.TryGetValue("level-type", out var lt))
@@ -160,6 +163,44 @@ namespace PocketMC.Desktop.Views
                     ImgIconPreview.Source = bmp;
                 }
                 catch { }
+            }
+
+            // Fire and forget tunnel resolution
+            _ = ResolveTunnelAddressAsync(portString);
+        }
+
+        private async System.Threading.Tasks.Task ResolveTunnelAddressAsync(string portString)
+        {
+            if (!int.TryParse(portString, out int port))
+            {
+                TxtPlayitAddress.Text = "Invalid port configured.";
+                return;
+            }
+
+            try
+            {
+                var apiClient = new PlayitApiClient();
+                var result = await apiClient.GetTunnelsAsync();
+
+                if (!result.Success)
+                {
+                    TxtPlayitAddress.Text = result.IsTokenInvalid ? "⚠️ Token invalid. Re-link account via Dashboard." : "⚠️ API unreachable.";
+                    return;
+                }
+
+                var match = PlayitApiClient.FindTunnelForPort(result.Tunnels, port);
+                if (match != null)
+                {
+                    TxtPlayitAddress.Text = match.PublicAddress;
+                }
+                else
+                {
+                    TxtPlayitAddress.Text = "No tunnel linked for this port. Start the server to create one.";
+                }
+            }
+            catch
+            {
+                TxtPlayitAddress.Text = "Failed to resolve tunnel.";
             }
         }
 

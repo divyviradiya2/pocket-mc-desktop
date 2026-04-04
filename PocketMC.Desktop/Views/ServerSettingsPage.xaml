@@ -97,6 +97,11 @@
                                 <TextBox x:Name="TxtServerPort" Text="25565" Background="#3E3E42" Foreground="White" Padding="5" Margin="0,0,0,10"/>
                                 <TextBlock Text="Server IP (Leave blank for default):" Foreground="Silver" Margin="0,5"/>
                                 <TextBox x:Name="TxtServerIp" Background="#3E3E42" Foreground="White" Padding="5" Margin="0,0,0,10"/>
+                                
+                                <TextBlock Text="Playit.gg Public Address:" Foreground="Silver" Margin="0,5"/>
+                                <TextBox x:Name="TxtPlayitAddress" IsReadOnly="True" Background="#2D2D30" Foreground="#89B4FA" Padding="5" Margin="0,0,0,10" 
+                                         BorderBrush="#89B4FA" BorderThickness="1"
+                                         Text="Resolving tunnel from agent..."/>
                             </StackPanel>
                         </Expander>
 
