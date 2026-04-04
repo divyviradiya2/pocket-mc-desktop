@@ -24,7 +24,7 @@
                        Icon="{ui:SymbolIcon ArrowLeft24}" Click="BtnBack_Click" Cursor="Hand" Margin="0,0,12,0"/>
             
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <ui:TextBlock FontTypography="Subtitle" Text="{Binding ServerName}" Margin="0,0,12,0"/>
+                <ui:TextBlock FontTypography="Subtitle" Text="{Binding ServerName}" Foreground="White" Margin="0,0,12,0"/>
                 <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusColor}" 
                            FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
             </StackPanel>
