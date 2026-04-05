@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows;
 using System.Windows.Media;
 using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Services;
@@ -40,6 +41,8 @@ namespace PocketMC.Desktop.ViewModels
         public bool IsRunning => _state == ServerState.Starting || _state == ServerState.Online || _state == ServerState.Stopping;
         public bool IsWaitingToRestart => _serverProcessManager.IsWaitingToRestart(Id);
         public bool ShowRunningControls => IsRunning || IsWaitingToRestart;
+        public Visibility RunningControlsVisibility => ShowRunningControls ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility StoppedControlsVisibility => ShowRunningControls ? Visibility.Collapsed : Visibility.Visible;
         public string StopButtonText => IsWaitingToRestart ? "Abort" : "Stop";
         public string MinecraftVersion => _metadata.MinecraftVersion;
         public string ServerType => _metadata.ServerType;
@@ -166,6 +169,8 @@ namespace PocketMC.Desktop.ViewModels
             _state = newState;
             OnPropertyChanged(nameof(IsRunning));
             OnPropertyChanged(nameof(ShowRunningControls));
+            OnPropertyChanged(nameof(RunningControlsVisibility));
+            OnPropertyChanged(nameof(StoppedControlsVisibility));
             OnPropertyChanged(nameof(IsWaitingToRestart));
             OnPropertyChanged(nameof(StopButtonText));
             OnPropertyChanged(nameof(StatusText));
@@ -178,6 +183,8 @@ namespace PocketMC.Desktop.ViewModels
             _state = ServerState.Crashed;
             OnPropertyChanged(nameof(IsWaitingToRestart));
             OnPropertyChanged(nameof(ShowRunningControls));
+            OnPropertyChanged(nameof(RunningControlsVisibility));
+            OnPropertyChanged(nameof(StoppedControlsVisibility));
             OnPropertyChanged(nameof(StopButtonText));
             OnPropertyChanged(nameof(StatusText));
         }

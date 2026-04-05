@@ -5,59 +5,51 @@
       Title="Server Console"
       PreviewKeyDown="Page_PreviewKeyDown">
     
-    <Grid Margin="16">
+    <Grid x:Name="PageRoot" Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
-        <!-- Top bar: Server name, status, and controls -->
+        <!-- Top bar: Console actions -->
         <Grid Grid.Row="0" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            
-            <ui:Button Grid.Column="0" Content="Back" Appearance="Secondary" 
+
+            <ui:Button Grid.Column="0" Content="Back" Appearance="Secondary"
                        Icon="{ui:SymbolIcon ArrowLeft24}" Click="BtnBack_Click" Cursor="Hand" Margin="0,0,12,0"/>
-            
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <ui:TextBlock FontTypography="Subtitle" Text="{Binding ServerName}" Foreground="White" Margin="0,0,12,0"/>
-                <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusColor}" 
-                           FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
-            </StackPanel>
-            
-            <ToggleButton x:Name="BtnAutoScroll" Grid.Column="2" Content="Auto-scroll" 
-                             IsChecked="True" VerticalAlignment="Center" Margin="0,0,16,0" Cursor="Hand" Padding="12,5"/>
-            
-            <ui:Button Grid.Column="3" Content="Copy Logs" Appearance="Secondary"
+
+            <ToggleButton x:Name="BtnAutoScroll" Grid.Column="1" Content="Auto-scroll"
+                          IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0" Cursor="Hand" Padding="12,5"/>
+
+            <ui:Button Grid.Column="2" Content="Copy Logs" Appearance="Secondary"
                        Icon="{ui:SymbolIcon Copy24}" Click="BtnCopyLogs_Click" Cursor="Hand" Margin="0,0,8,0"/>
-            
-            <ui:TextBox x:Name="TxtLogSearch" Grid.Column="4" PlaceholderText="Search logs..." 
-                        Margin="0,0,8,0" Width="150" VerticalAlignment="Center"
+
+            <ui:TextBox x:Name="TxtLogSearch" Grid.Column="3" PlaceholderText="Search logs..."
+                        Margin="0,0,8,0" MinWidth="160" VerticalAlignment="Center"
                         TextChanged="TxtLogSearch_TextChanged"/>
-            
-            <ComboBox x:Name="CmbLogFilter" Grid.Column="5" Margin="0,0,8,0" SelectedIndex="0" VerticalAlignment="Center" Width="140" SelectionChanged="CmbLogFilter_SelectionChanged">
+
+            <ComboBox x:Name="CmbLogFilter" Grid.Column="4" Margin="0,0,8,0" SelectedIndex="0" VerticalAlignment="Center" Width="140" SelectionChanged="CmbLogFilter_SelectionChanged">
                 <ComboBoxItem Content="All Logs"/>
                 <ComboBoxItem Content="Info +"/>
                 <ComboBoxItem Content="Warnings/Errors"/>
                 <ComboBoxItem Content="Crashes/Exceptions"/>
             </ComboBox>
 
-            <StackPanel Grid.Column="6" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                <ui:Button Content="Stop Server" Appearance="Danger"
-                           Icon="{ui:SymbolIcon Stop24}" Click="BtnStop_Click" Cursor="Hand" Margin="0,0,8,0"
-                           IsEnabled="{Binding CanStopServer}"/>
-                <ui:Button Content="Restart" Appearance="Secondary"
-                           Icon="{ui:SymbolIcon ArrowSync24}" Click="BtnRestart_Click" Cursor="Hand"/>
-            </StackPanel>
+            <ui:Button Grid.Column="5" Content="Stop Server" Appearance="Danger"
+                       Icon="{ui:SymbolIcon Stop24}" Click="BtnStop_Click" Cursor="Hand" Margin="0,0,8,0"
+                       IsEnabled="{Binding CanStopServer}"/>
+
+            <ui:Button Grid.Column="6" Content="Restart" Appearance="Secondary"
+                       Icon="{ui:SymbolIcon ArrowSync24}" Click="BtnRestart_Click" Cursor="Hand"/>
         </Grid>
         
         <!-- Console output area -->
@@ -89,7 +81,8 @@
                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                             VirtualizingStackPanel.IsVirtualizing="True"
-                            VirtualizingStackPanel.VirtualizationMode="Recycling">
+                            VirtualizingStackPanel.VirtualizationMode="Recycling"
+                            PreviewMouseWheel="LogView_PreviewMouseWheel">
                     <ListView.ItemTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding Text}" Foreground="{Binding TextColor}" 

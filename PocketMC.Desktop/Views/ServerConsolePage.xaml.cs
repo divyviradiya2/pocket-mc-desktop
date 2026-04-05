@@ -40,7 +40,7 @@ namespace PocketMC.Desktop.Views
     /// Dedicated console page for viewing server output and sending commands.
     /// Uses DispatcherTimer batching for high-performance rendering.
     /// </summary>
-    public partial class ServerConsolePage : Page, INotifyPropertyChanged
+    public partial class ServerConsolePage : Page, INotifyPropertyChanged, ITitleBarContextSource
     {
         private readonly InstanceMetadata _metadata;
         private readonly ServerProcess _serverProcess;
@@ -48,6 +48,11 @@ namespace PocketMC.Desktop.Views
         private readonly ConcurrentQueue<LogLine> _pendingLines = new();
         private readonly DispatcherTimer _flushTimer;
         private const int MAX_LOG_LINES = 10000;
+        private ScrollViewer? _shellScrollViewer;
+        private ScrollViewer? _logScrollViewer;
+        private ScrollBarVisibility _originalShellVerticalScrollBarVisibility;
+        private ScrollBarVisibility _originalShellHorizontalScrollBarVisibility;
+        private bool _isShellScrollLocked;
 
         public ObservableCollection<LogLine> Logs { get; } = new();
         public ObservableCollection<LogLine> FilteredLogs { get; } = new();
@@ -73,8 +78,12 @@ namespace PocketMC.Desktop.Views
             ServerState.Crashed => Brushes.Red,
             _ => Brushes.Gray
         };
+        public string? TitleBarContextTitle => ServerName;
+        public string? TitleBarContextStatusText => StatusText;
+        public Brush? TitleBarContextStatusBrush => StatusColor;
 
         public bool CanStopServer => _serverProcess.State == ServerState.Online || _serverProcess.State == ServerState.Starting;
+        public event Action? TitleBarContextChanged;
 
         public ServerConsolePage(InstanceMetadata metadata, ServerProcess serverProcess, ILogger<ServerConsolePage> logger)
         {
@@ -98,7 +107,8 @@ namespace PocketMC.Desktop.Views
             };
             _flushTimer.Tick += FlushPendingLines;
             _flushTimer.Start();
-            Unloaded += (_, _) => DetachHandlers();
+            Loaded += ServerConsolePage_Loaded;
+            Unloaded += ServerConsolePage_Unloaded;
 
             // 1. Load full session history from the log file (NET-15)
             LoadSessionLogHistory();
@@ -119,6 +129,21 @@ namespace PocketMC.Desktop.Views
 
             // 5. Connect GotFocus for immediate suggestions
             TxtCommand.GotFocus += TxtCommand_GotFocus;
+        }
+
+        private void ServerConsolePage_Loaded(object sender, RoutedEventArgs e)
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+            {
+                LockShellScrollHost();
+                EnsureLogScrollViewer();
+            }));
+        }
+
+        private void ServerConsolePage_Unloaded(object sender, RoutedEventArgs e)
+        {
+            UnlockShellScrollHost();
+            DetachHandlers();
         }
 
         private void TxtCommand_GotFocus(object sender, RoutedEventArgs e)
@@ -204,6 +229,7 @@ namespace PocketMC.Desktop.Views
                 OnPropertyChanged(nameof(StatusText));
                 OnPropertyChanged(nameof(StatusColor));
                 OnPropertyChanged(nameof(CanStopServer));
+                TitleBarContextChanged?.Invoke();
 
                 if (state == ServerState.Starting)
                 {
@@ -551,7 +577,11 @@ namespace PocketMC.Desktop.Views
 
         private void BtnBack_Click(object sender, RoutedEventArgs e)
         {
-            DetachHandlers();
+            var mainWindow = Window.GetWindow(this) as MainWindow;
+            if (mainWindow?.NavigateToDashboard() == true)
+            {
+                return;
+            }
 
             if (NavigationService?.CanGoBack == true)
                 NavigationService.GoBack();
@@ -581,6 +611,128 @@ namespace PocketMC.Desktop.Views
             _serverProcess.OnErrorLine -= OnErrorReceived;
             _serverProcess.OnStateChanged -= OnStateChanged;
             _serverProcess.OnServerCrashed -= OnServerCrashed;
+        }
+
+        private void LockShellScrollHost()
+        {
+            if (_isShellScrollLocked)
+            {
+                UpdatePageViewportHeight();
+                return;
+            }
+
+            _shellScrollViewer = FindAncestor<ScrollViewer>(this);
+            if (_shellScrollViewer == null)
+            {
+                return;
+            }
+
+            _originalShellVerticalScrollBarVisibility = _shellScrollViewer.VerticalScrollBarVisibility;
+            _originalShellHorizontalScrollBarVisibility = _shellScrollViewer.HorizontalScrollBarVisibility;
+            _shellScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
+            _shellScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+            _shellScrollViewer.SizeChanged += ShellScrollViewer_SizeChanged;
+            _isShellScrollLocked = true;
+
+            UpdatePageViewportHeight();
+        }
+
+        private void UnlockShellScrollHost()
+        {
+            if (!_isShellScrollLocked || _shellScrollViewer == null)
+            {
+                return;
+            }
+
+            _shellScrollViewer.SizeChanged -= ShellScrollViewer_SizeChanged;
+            _shellScrollViewer.VerticalScrollBarVisibility = _originalShellVerticalScrollBarVisibility;
+            _shellScrollViewer.HorizontalScrollBarVisibility = _originalShellHorizontalScrollBarVisibility;
+            _shellScrollViewer = null;
+            _isShellScrollLocked = false;
+            PageRoot.Height = double.NaN;
+        }
+
+        private void ShellScrollViewer_SizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            UpdatePageViewportHeight();
+        }
+
+        private void UpdatePageViewportHeight()
+        {
+            if (_shellScrollViewer == null)
+            {
+                return;
+            }
+
+            double hostHeight = _shellScrollViewer.ViewportHeight > 0
+                ? _shellScrollViewer.ViewportHeight
+                : _shellScrollViewer.ActualHeight;
+
+            if (hostHeight <= 0)
+            {
+                return;
+            }
+
+            double verticalMargin = PageRoot.Margin.Top + PageRoot.Margin.Bottom;
+            PageRoot.Height = Math.Max(0, hostHeight - verticalMargin - 1);
+        }
+
+        private void EnsureLogScrollViewer()
+        {
+            _logScrollViewer ??= FindDescendant<ScrollViewer>(LogView);
+        }
+
+        private void LogView_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            EnsureLogScrollViewer();
+            if (_logScrollViewer == null)
+            {
+                return;
+            }
+
+            double newOffset = _logScrollViewer.VerticalOffset - (e.Delta / 3.0);
+            _logScrollViewer.ScrollToVerticalOffset(newOffset);
+            e.Handled = true;
+        }
+
+        private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
+        {
+            while (current != null)
+            {
+                current = VisualTreeHelper.GetParent(current);
+                if (current is T ancestor)
+                {
+                    return ancestor;
+                }
+            }
+
+            return null;
+        }
+
+        private static T? FindDescendant<T>(DependencyObject? current) where T : DependencyObject
+        {
+            if (current == null)
+            {
+                return null;
+            }
+
+            int childCount = VisualTreeHelper.GetChildrenCount(current);
+            for (int i = 0; i < childCount; i++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(current, i);
+                if (child is T match)
+                {
+                    return match;
+                }
+
+                T? nestedMatch = FindDescendant<T>(child);
+                if (nestedMatch != null)
+                {
+                    return nestedMatch;
+                }
+            }
+
+            return null;
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

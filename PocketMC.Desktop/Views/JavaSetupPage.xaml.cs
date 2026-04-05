@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using PocketMC.Desktop.Services;
@@ -19,37 +18,131 @@ namespace PocketMC.Desktop.Views
     /// </summary>
     public class JavaRuntimeEntry : INotifyPropertyChanged
     {
+        private bool _isInstalled;
+        private bool _isCustom;
+        private string? _path;
+        private JavaProvisioningStage _stage;
+        private bool _hasError;
+
         public int Version { get; set; }
         public string VersionLabel => Version > 0 ? $"{Version}" : "?";
         public string DisplayName { get; set; } = "";
-        public bool IsInstalled { get; set; }
-        public bool IsCustom { get; set; }
-        public string? Path { get; set; }
+        public bool IsInstalled
+        {
+            get => _isInstalled;
+            set
+            {
+                _isInstalled = value;
+                Refresh();
+            }
+        }
+
+        public bool IsCustom
+        {
+            get => _isCustom;
+            set
+            {
+                _isCustom = value;
+                Refresh();
+            }
+        }
+
+        public string? Path
+        {
+            get => _path;
+            set
+            {
+                _path = value;
+                OnPropertyChanged(nameof(Path));
+            }
+        }
+
+        public JavaProvisioningStage Stage
+        {
+            get => _stage;
+            set
+            {
+                _stage = value;
+                Refresh();
+            }
+        }
+
+        public bool HasError
+        {
+            get => _hasError;
+            set
+            {
+                _hasError = value;
+                Refresh();
+            }
+        }
+
+        public bool IsProvisioning =>
+            !IsCustom &&
+            Stage is JavaProvisioningStage.Queued
+                or JavaProvisioningStage.ResolvingPackage
+                or JavaProvisioningStage.Downloading
+                or JavaProvisioningStage.Extracting
+                or JavaProvisioningStage.Verifying;
 
         // ── Badge (subtle semi-transparent fills) ──
-        public string BadgeText => IsCustom ? "CUSTOM" : IsInstalled ? "READY" : "MISSING";
+        public string BadgeText => IsCustom
+            ? "CUSTOM"
+            : HasError
+                ? "ERROR"
+                : Stage switch
+                {
+                    JavaProvisioningStage.Queued or JavaProvisioningStage.ResolvingPackage => "PREPARING",
+                    JavaProvisioningStage.Downloading => "DOWNLOADING",
+                    JavaProvisioningStage.Extracting => "EXTRACTING",
+                    JavaProvisioningStage.Verifying => "VERIFYING",
+                    _ when IsInstalled => "READY",
+                    _ => "MISSING"
+                };
         public Visibility BadgeVisibility => Visibility.Visible;
         public SolidColorBrush BadgeBackground => IsCustom
             ? new SolidColorBrush(Color.FromArgb(0x30, 0xA0, 0x8C, 0xFF))   // soft violet tint
-            : IsInstalled
-                ? new SolidColorBrush(Color.FromArgb(0x30, 0x60, 0xCD, 0xFF))  // soft blue tint
-                : new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0x99, 0x66)); // soft amber tint
+            : HasError
+                ? new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0x66, 0x66))
+                : IsProvisioning
+                    ? new SolidColorBrush(Color.FromArgb(0x30, 0x66, 0xCC, 0xFF))
+                    : IsInstalled
+                        ? new SolidColorBrush(Color.FromArgb(0x30, 0x60, 0xCD, 0xFF))
+                        : new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0x99, 0x66));
         public SolidColorBrush BadgeForeground => IsCustom
             ? new SolidColorBrush(Color.FromRgb(0xC0, 0xB4, 0xFF))  // light violet
-            : IsInstalled
-                ? new SolidColorBrush(Color.FromRgb(0x78, 0xB8, 0xFF))  // light blue
-                : new SolidColorBrush(Color.FromRgb(0xFF, 0xBB, 0x88)); // light amber
+            : HasError
+                ? new SolidColorBrush(Color.FromRgb(0xFF, 0x9C, 0x9C))
+                : IsProvisioning
+                    ? new SolidColorBrush(Color.FromRgb(0x8B, 0xD0, 0xFF))
+                    : IsInstalled
+                        ? new SolidColorBrush(Color.FromRgb(0x78, 0xB8, 0xFF))
+                        : new SolidColorBrush(Color.FromRgb(0xFF, 0xBB, 0x88));
 
         // ── Version tile (left icon) ──
-        public SolidColorBrush StatusBackground => IsInstalled
-            ? new SolidColorBrush(Color.FromArgb(0x25, 0x60, 0xCD, 0xFF))  // subtle blue glass
-            : new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)); // faint white glass
+        public SolidColorBrush StatusBackground => HasError
+            ? new SolidColorBrush(Color.FromArgb(0x25, 0xFF, 0x66, 0x66))
+            : IsProvisioning
+                ? new SolidColorBrush(Color.FromArgb(0x25, 0x66, 0xCC, 0xFF))
+                : IsInstalled
+                    ? new SolidColorBrush(Color.FromArgb(0x25, 0x60, 0xCD, 0xFF))
+                    : new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
 
         // ── Status icon (Segoe Fluent glyph) ──
-        public string StatusIcon => IsInstalled ? "\uE73E" : "\uE896";
-        public SolidColorBrush StatusIconForeground => IsInstalled
-            ? new SolidColorBrush(Color.FromRgb(0x78, 0xB8, 0xFF))  // calm blue
-            : new SolidColorBrush(Color.FromArgb(0x60, 0xFF, 0xFF, 0xFF)); // dim white
+        public string StatusIcon => HasError
+            ? "\uEA39"
+            : IsProvisioning
+                ? "\uE895"
+                : IsInstalled
+                    ? "\uE73E"
+                    : "\uE896";
+        public SolidColorBrush StatusIconForeground => HasError
+            ? new SolidColorBrush(Color.FromRgb(0xFF, 0x9C, 0x9C))
+            : IsProvisioning
+                ? new SolidColorBrush(Color.FromRgb(0x8B, 0xD0, 0xFF))
+                : IsInstalled
+                    ? new SolidColorBrush(Color.FromRgb(0x78, 0xB8, 0xFF))
+                    : new SolidColorBrush(Color.FromArgb(0x60, 0xFF, 0xFF, 0xFF));
 
         // ── Detail line ──
         private string _detailText = "";
@@ -75,10 +168,15 @@ namespace PocketMC.Desktop.Views
         }
 
         // ── Delete button ──
-        public Visibility DeleteVisibility => IsInstalled ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility DeleteVisibility => IsInstalled && !IsProvisioning ? Visibility.Visible : Visibility.Collapsed;
 
         public void Refresh()
         {
+            OnPropertyChanged(nameof(IsInstalled));
+            OnPropertyChanged(nameof(IsCustom));
+            OnPropertyChanged(nameof(Stage));
+            OnPropertyChanged(nameof(HasError));
+            OnPropertyChanged(nameof(IsProvisioning));
             OnPropertyChanged(nameof(BadgeText));
             OnPropertyChanged(nameof(BadgeBackground));
             OnPropertyChanged(nameof(BadgeForeground));
@@ -96,38 +194,36 @@ namespace PocketMC.Desktop.Views
     public partial class JavaSetupPage : Page
     {
         private readonly ApplicationState _applicationState;
-        private readonly IServiceProvider _serviceProvider;
         private readonly JavaProvisioningService _javaProvisioning;
         private readonly ILogger<JavaSetupPage> _logger;
+        private bool _isSubscribedToProvisioning;
         public ObservableCollection<JavaRuntimeEntry> Runtimes { get; } = new();
 
         public JavaSetupPage(
             ApplicationState applicationState,
-            IServiceProvider serviceProvider,
             JavaProvisioningService javaProvisioning,
             ILogger<JavaSetupPage> logger)
         {
             InitializeComponent();
             _applicationState = applicationState;
-            _serviceProvider = serviceProvider;
             _javaProvisioning = javaProvisioning;
             _logger = logger;
             RuntimeList.ItemsSource = Runtimes;
             Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
         }
 
-        private async void OnLoaded(object sender, RoutedEventArgs e)
+        private void OnLoaded(object sender, RoutedEventArgs e)
         {
+            SubscribeToProvisioning();
             ScanRuntimes();
+            ApplyProvisioningStatuses();
+            _javaProvisioning.StartBackgroundProvisioning();
+        }
 
-            // Auto-download missing runtimes + playit on first load
-            bool anyMissing = Runtimes.Any(r => !r.IsInstalled);
-            if (anyMissing)
-            {
-                await DownloadMissingRuntimesAsync();
-            }
-
-            await EnsurePlayitReadyAsync();
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            UnsubscribeFromProvisioning();
         }
 
         /// <summary>
@@ -153,7 +249,7 @@ namespace PocketMC.Desktop.Views
                 }
                 else
                 {
-                    detail = "Not downloaded — click Download Missing to install";
+                    detail = "Missing runtime. PocketMC will download it automatically.";
                 }
 
                 string mcRange = version switch
@@ -208,6 +304,7 @@ namespace PocketMC.Desktop.Views
             int installedCount = Runtimes.Count(r => r.IsInstalled);
             int total = Runtimes.Count;
             TxtGlobalStatus.Text = $"{installedCount} of {total} runtimes installed";
+            TxtGlobalStatus.Foreground = Brushes.Silver;
         }
 
         // ──────────────────────────────────────────────
@@ -216,76 +313,23 @@ namespace PocketMC.Desktop.Views
 
         private async void BtnDownloadMissing_Click(object sender, RoutedEventArgs e)
         {
-            await DownloadMissingRuntimesAsync();
-        }
-
-        private async Task DownloadMissingRuntimesAsync()
-        {
-            var missing = Runtimes.Where(r => !r.IsInstalled && !r.IsCustom).ToList();
-            if (missing.Count == 0)
-            {
-                TxtGlobalStatus.Text = "All runtimes are installed ✓";
-                return;
-            }
-
-            BtnDownloadMissing.IsEnabled = false;
-            TxtGlobalStatus.Text = $"Downloading {missing.Count} runtime(s)...";
-
             try
             {
-                foreach (var entry in missing)
-                {
-                    entry.ProgressVisibility = Visibility.Visible;
-                    entry.DetailText = "Downloading...";
-                    entry.Progress = 0;
-
-                    await AcquireJreAsync(entry);
-
-                    entry.IsInstalled = true;
-                    entry.ProgressVisibility = Visibility.Collapsed;
-                    entry.DetailText = $"{entry.Path}  •  {GetDirectorySizeMb(entry.Path!):F1} MB";
-                    entry.Refresh();
-                }
-
-                TxtGlobalStatus.Text = "All runtimes are installed ✓";
+                BtnDownloadMissing.IsEnabled = false;
+                TxtGlobalStatus.Text = "Checking and repairing missing runtimes...";
+                TxtGlobalStatus.Foreground = Brushes.Silver;
+                await _javaProvisioning.EnsureBundledRuntimesAsync();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Runtime download failed.");
-                TxtGlobalStatus.Text = $"Download error: {ex.Message}";
+                _logger.LogWarning(ex, "Manual runtime provisioning did not complete successfully.");
+                TxtGlobalStatus.Text = ex.Message;
                 TxtGlobalStatus.Foreground = Brushes.OrangeRed;
             }
             finally
             {
-                BtnDownloadMissing.IsEnabled = true;
+                UpdateGlobalStatus();
             }
-        }
-
-        /// <summary>
-        /// Downloads a single JRE via JavaProvisioningService with progress reporting.
-        /// </summary>
-        private async Task AcquireJreAsync(JavaRuntimeEntry entry)
-        {
-            var progress = new Progress<DownloadProgress>(p =>
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    entry.Progress = p.Percentage;
-                    if (p.Percentage < 99)
-                    {
-                        entry.DetailText = $"Downloading — {p.BytesRead / 1024 / 1024} MB / {p.TotalBytes / 1024 / 1024} MB";
-                    }
-                    else
-                    {
-                        entry.DetailText = "Extracting...";
-                    }
-                });
-            });
-
-            await _javaProvisioning.EnsureJavaAsync(entry.Version, progress);
-
-            string appRoot = _applicationState.GetRequiredAppRootPath();
-            entry.Path = System.IO.Path.Combine(appRoot, "runtime", $"java{entry.Version}");
         }
 
         // ──────────────────────────────────────────────
@@ -391,23 +435,127 @@ namespace PocketMC.Desktop.Views
         private void BtnRefresh_Click(object sender, RoutedEventArgs e)
         {
             ScanRuntimes();
+            ApplyProvisioningStatuses();
         }
 
         // ──────────────────────────────────────────────
         //  Helpers
         // ──────────────────────────────────────────────
 
-        private async Task EnsurePlayitReadyAsync()
+        private void SubscribeToProvisioning()
         {
-            try
+            if (_isSubscribedToProvisioning)
             {
-                var downloader = new DownloaderService();
-                await downloader.EnsurePlayitDownloadedAsync(_applicationState.GetRequiredAppRootPath());
+                return;
             }
-            catch (Exception ex)
+
+            _javaProvisioning.OnProvisioningStatusChanged += OnProvisioningStatusChanged;
+            _isSubscribedToProvisioning = true;
+        }
+
+        private void UnsubscribeFromProvisioning()
+        {
+            if (!_isSubscribedToProvisioning)
             {
-                _logger.LogWarning(ex, "Playit download failed but the rest of the app can continue.");
+                return;
             }
+
+            _javaProvisioning.OnProvisioningStatusChanged -= OnProvisioningStatusChanged;
+            _isSubscribedToProvisioning = false;
+        }
+
+        private void OnProvisioningStatusChanged(JavaProvisioningStatus status)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                var entry = Runtimes.FirstOrDefault(runtime => runtime.Version == status.Version && !runtime.IsCustom);
+                if (entry == null)
+                {
+                    ScanRuntimes();
+                    entry = Runtimes.FirstOrDefault(runtime => runtime.Version == status.Version && !runtime.IsCustom);
+                }
+
+                if (entry != null)
+                {
+                    ApplyProvisioningStatus(entry, status);
+                }
+
+                UpdateGlobalStatus();
+            });
+        }
+
+        private void ApplyProvisioningStatuses()
+        {
+            foreach (var entry in Runtimes.Where(runtime => !runtime.IsCustom))
+            {
+                ApplyProvisioningStatus(entry, _javaProvisioning.GetStatus(entry.Version));
+            }
+
+            UpdateGlobalStatus();
+        }
+
+        private void ApplyProvisioningStatus(JavaRuntimeEntry entry, JavaProvisioningStatus status)
+        {
+            entry.Stage = status.Stage;
+            entry.HasError = status.HasError;
+            entry.IsInstalled = status.IsInstalled;
+            entry.Progress = status.ProgressPercentage;
+            entry.ProgressVisibility = status.IsBusy ? Visibility.Visible : Visibility.Collapsed;
+
+            if (status.Stage == JavaProvisioningStage.Ready && status.IsInstalled)
+            {
+                entry.Path = Path.Combine(_applicationState.GetRequiredAppRootPath(), "runtime", $"java{entry.Version}");
+                entry.DetailText = $"{entry.Path}  •  {GetDirectorySizeMb(entry.Path):F1} MB";
+            }
+            else if (status.HasError)
+            {
+                entry.DetailText = status.Message;
+            }
+            else if (status.IsBusy)
+            {
+                entry.DetailText = status.Message;
+            }
+            else if (!entry.IsInstalled)
+            {
+                entry.DetailText = "Missing runtime. PocketMC will download it automatically.";
+            }
+            else if (!string.IsNullOrWhiteSpace(entry.Path))
+            {
+                entry.DetailText = $"{entry.Path}  •  {GetDirectorySizeMb(entry.Path):F1} MB";
+            }
+
+            entry.Refresh();
+        }
+
+        private void UpdateGlobalStatus()
+        {
+            var bundledEntries = Runtimes.Where(entry => !entry.IsCustom).ToList();
+            var busyEntries = bundledEntries.Where(entry => entry.IsProvisioning).ToList();
+            var failedEntries = bundledEntries.Where(entry => entry.HasError).ToList();
+            int installedCount = bundledEntries.Count(entry => entry.IsInstalled);
+            int total = bundledEntries.Count;
+
+            BtnDownloadMissing.IsEnabled = busyEntries.Count == 0;
+
+            if (busyEntries.Count > 0)
+            {
+                string active = busyEntries[0].DisplayName;
+                TxtGlobalStatus.Text = busyEntries.Count == 1
+                    ? $"{active}: {busyEntries[0].DetailText}"
+                    : $"{active} and {busyEntries.Count - 1} more runtime(s) are being prepared...";
+                TxtGlobalStatus.Foreground = Brushes.Silver;
+                return;
+            }
+
+            if (failedEntries.Count > 0)
+            {
+                TxtGlobalStatus.Text = failedEntries[0].DetailText;
+                TxtGlobalStatus.Foreground = Brushes.OrangeRed;
+                return;
+            }
+
+            TxtGlobalStatus.Text = $"{installedCount} of {total} bundled runtimes installed";
+            TxtGlobalStatus.Foreground = Brushes.Silver;
         }
 
         private static double GetDirectorySizeMb(string path)

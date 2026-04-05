@@ -6,7 +6,7 @@ namespace PocketMC.Desktop.Services;
 
 public static class JavaRuntimeResolver
 {
-    private static readonly int[] BundledJavaVersions = { 8, 17, 21, 25 };
+    private static readonly int[] BundledJavaVersions = { 8, 11, 17, 21, 25 };
     private static readonly Regex LeadingVersionRegex = new(
         @"^\d+(?:\.\d+){0,2}",
         RegexOptions.Compiled,

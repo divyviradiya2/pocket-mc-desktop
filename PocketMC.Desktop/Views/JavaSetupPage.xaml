@@ -90,7 +90,8 @@
                                     <TextBlock Text="{Binding DetailText}"
                                                FontSize="12"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                               TextTrimming="CharacterEllipsis"
+                                               TextWrapping="Wrap"
+                                               MaxWidth="560"
                                                Margin="0,3,0,0"/>
                                     <!-- Download progress -->
                                     <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100"
@@ -127,7 +128,8 @@
         <!-- ─── Status Bar ─── -->
         <TextBlock x:Name="TxtGlobalStatus" Grid.Row="3"
                    Text=""
-                   HorizontalAlignment="Center"
+                   HorizontalAlignment="Left"
+                   TextWrapping="Wrap"
                    Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                    Margin="0,12,0,0"/>
     </Grid>

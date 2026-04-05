@@ -7,23 +7,6 @@
     
     <Page.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-        
-        <!-- Inverse bool converter -->
-        <Style x:Key="HiddenWhenRunning" TargetType="FrameworkElement">
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding ShowRunningControls}" Value="True">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="VisibleWhenRunning" TargetType="FrameworkElement">
-            <Setter Property="Visibility" Value="Collapsed"/>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding ShowRunningControls}" Value="True">
-                    <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
     </Page.Resources>
     
     <Grid Margin="24" AllowDrop="True" Drop="Page_Drop" DragOver="Page_DragOver">
@@ -33,32 +16,12 @@
         </Grid.RowDefinitions>
         
         <StackPanel Grid.Row="0">
-
-
             <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
                 <ui:TextBlock FontTypography="Title" Text="Instances" Foreground="White" Margin="0,0,16,0" VerticalAlignment="Center"/>
                 <ui:Button Content="New Instance" Icon="{ui:SymbolIcon Add24}" Appearance="Primary" Click="BtnNewInstance_Click" Cursor="Hand" Margin="0,0,8,0"/>
                 <ui:Button Content="Import Modpack" Icon="{ui:SymbolIcon FolderZip24}" Appearance="Secondary" Click="BtnImportModpack_Click" Cursor="Hand" Margin="0,0,8,0"/>
                 <ui:Button Content="Browse Modpacks" Icon="{ui:SymbolIcon Globe24}" Appearance="Secondary" Click="BtnBrowseModpacks_Click" Cursor="Hand"/>
             </StackPanel>
-
-            <!-- Playit Health Banner (NET-05, D-02) -->
-            <Border x:Name="PlayitStatusBanner" Visibility="Collapsed" Background="#44F44336" BorderBrush="#88F44336" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,24">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <ui:SymbolIcon Symbol="Warning24" Margin="0,0,12,0" Foreground="Red" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="TxtPlayitStatus" Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="White">
-                        <Run Text="⚠ Playit.gg Status" FontWeight="Bold"/>
-                        <LineBreak/>
-                        <Run x:Name="TxtPlayitDetail" Text="Token invalid — re-link account to restore tunnel access."/>
-                    </TextBlock>
-                    <ui:Button Grid.Column="2" x:Name="BtnFixPlayit" Content="Fix" Appearance="Secondary" Padding="12,4" Click="BtnFixPlayit_Click" VerticalAlignment="Center"/>
-                </Grid>
-            </Border>
         </StackPanel>
         
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
@@ -156,7 +119,7 @@
                                 </Grid>
                                 
                                 <!-- Running metrics panel (Row 3, hidden when stopped) -->
-                                <Grid Grid.Row="3" Style="{StaticResource VisibleWhenRunning}" Margin="0,0,0,16">
+                                <Grid Grid.Row="3" Visibility="{Binding RunningControlsVisibility}" Margin="0,0,0,16">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
@@ -179,7 +142,7 @@
                                 <!-- Action buttons (Row 5) -->
                                 <Grid Grid.Row="5" Margin="0,8,0,0">
                                     <!-- STOPPED state -->
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Style="{StaticResource HiddenWhenRunning}">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Visibility="{Binding StoppedControlsVisibility}">
                                         <ui:Button Content="Start" Appearance="Primary" Margin="0,0,4,0"
                                                    Icon="{ui:SymbolIcon Play24}" Click="BtnStart_Click" Cursor="Hand"/>
                                         <ui:Button Content="Logs" Appearance="Secondary" Margin="0,0,4,0"
@@ -190,13 +153,14 @@
                                     </StackPanel>
                                     
                                     <!-- RUNNING state -->
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Style="{StaticResource VisibleWhenRunning}">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Visibility="{Binding RunningControlsVisibility}">
+                                        <ui:Button Content="{Binding StopButtonText}" Appearance="Danger" Margin="0,0,4,0"
+                                                   Icon="{ui:SymbolIcon Stop24}" Click="BtnStop_Click" Cursor="Hand"/>
                                         <ui:Button Content="Console" Appearance="Primary" Margin="0,0,4,0"
                                                    Icon="{ui:SymbolIcon WindowConsole20}" Click="BtnConsole_Click" Cursor="Hand"/>
                                         <ui:Button Content="Settings" Appearance="Secondary" Margin="0,0,4,0"
                                                    Icon="{ui:SymbolIcon Settings24}" Click="BtnManage_Click" Cursor="Hand"/>
-                                         <ui:Button Appearance="Secondary" Icon="{ui:SymbolIcon Folder24}" Click="BtnOpenFolder_Click" Cursor="Hand"/>
-                                     </StackPanel>
+                                    </StackPanel>
                                 </Grid>
                             </Grid>
                         </ui:Card>

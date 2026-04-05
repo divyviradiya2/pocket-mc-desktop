@@ -28,6 +28,11 @@ public partial class App : Application
             })
             .ConfigureServices(services =>
             {
+                services.AddHttpClient("PocketMC.Downloads", client =>
+                {
+                    client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop");
+                    client.Timeout = TimeSpan.FromMinutes(20);
+                });
                 services.AddSingleton<SettingsManager>();
                 services.AddSingleton<ApplicationState>();
                 services.AddSingleton<JobObject>();
@@ -52,8 +57,9 @@ public partial class App : Application
                 services.AddTransient<TunnelService>();
                 services.AddTransient<MainWindow>();
                 services.AddTransient<JavaSetupPage>();
+                services.AddTransient<TunnelPage>();
                 services.AddTransient<DashboardPage>();
-                services.AddTransient<NewInstanceDialog>();
+                services.AddTransient<NewInstancePage>();
             })
             .Build();
 

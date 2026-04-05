@@ -14,7 +14,6 @@ using PocketMC.Desktop.Services;
 using PocketMC.Desktop.Models;
 using PocketMC.Desktop.ViewModels;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using MenuItem = System.Windows.Controls.MenuItem;
 using MessageBoxButton = System.Windows.MessageBoxButton;
@@ -30,12 +29,10 @@ namespace PocketMC.Desktop.Views
         private readonly ResourceMonitorService _resourceMonitorService;
         private readonly PlayitAgentService _playitAgentService;
         private readonly PlayitApiClient _playitApiClient;
-        private readonly SettingsManager _settingsManager;
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<DashboardPage> _logger;
         private ObservableCollection<InstanceCardViewModel> _viewModels = new();
         private bool _isSubscribedToServices;
-        private int _playitHealthRefreshVersion;
 
         public DashboardPage(
             ApplicationState applicationState,
@@ -44,7 +41,6 @@ namespace PocketMC.Desktop.Views
             ResourceMonitorService resourceMonitorService,
             PlayitAgentService playitAgentService,
             PlayitApiClient playitApiClient,
-            SettingsManager settingsManager,
             IServiceProvider serviceProvider,
             ILogger<DashboardPage> logger)
         {
@@ -55,7 +51,6 @@ namespace PocketMC.Desktop.Views
             _resourceMonitorService = resourceMonitorService;
             _playitAgentService = playitAgentService;
             _playitApiClient = playitApiClient;
-            _settingsManager = settingsManager;
             _serviceProvider = serviceProvider;
             _logger = logger;
             LoadInstances();
@@ -71,15 +66,11 @@ namespace PocketMC.Desktop.Views
                 _serverProcessManager.OnInstanceStateChanged += OnServerStateChanged;
                 _serverProcessManager.OnRestartCountdownTick += OnRestartCountdownTick;
                 _resourceMonitorService.OnGlobalMetricsUpdated += UpdateMetrics;
-                _playitAgentService.OnClaimUrlReceived += OnClaimUrlReceived;
-                _playitAgentService.OnStateChanged += OnPlayitAgentStateChanged;
-                _playitAgentService.OnTunnelRunning += OnPlayitTunnelRunning;
                 _isSubscribedToServices = true;
             }
 
+            LoadInstances();
             SyncViewModelStates();
-            InitializePlayitAgent();
-            _ = RefreshPlayitHealthAsync(TimeSpan.FromSeconds(1), retryCount: 3);
         }
 
         private void DashboardPage_Unloaded(object sender, RoutedEventArgs e)
@@ -92,211 +83,7 @@ namespace PocketMC.Desktop.Views
             _serverProcessManager.OnInstanceStateChanged -= OnServerStateChanged;
             _serverProcessManager.OnRestartCountdownTick -= OnRestartCountdownTick;
             _resourceMonitorService.OnGlobalMetricsUpdated -= UpdateMetrics;
-            _playitAgentService.OnClaimUrlReceived -= OnClaimUrlReceived;
-            _playitAgentService.OnStateChanged -= OnPlayitAgentStateChanged;
-            _playitAgentService.OnTunnelRunning -= OnPlayitTunnelRunning;
             _isSubscribedToServices = false;
-        }
-
-        private void InitializePlayitAgent()
-        {
-            // 1. Check for binary (D-02)
-            if (!_playitAgentService.IsBinaryAvailable)
-            {
-                ShowPlayitStatusBanner("⚠ Playit.gg agent not found", "Agent binary missing. Please download it to enable tunnels.", isBinaryMissing: true);
-                return;
-            }
-
-            // 2. Start if not already running (NET-02)
-            _playitAgentService.Start();
-        }
-
-        private void OnClaimUrlReceived(object? sender, string claimUrl)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                ShowPlayitStatusBanner(
-                    "Playit.gg setup required",
-                    "Approve the agent in your browser to finish linking PocketMC. If you closed the claim page, click Fix to restart the setup flow.");
-                var guideWindow = ActivatorUtilities.CreateInstance<PlayitGuideWindow>(_serviceProvider, claimUrl);
-                guideWindow.Owner = Window.GetWindow(this);
-                guideWindow.Show();
-            });
-        }
-
-        private void OnPlayitAgentStateChanged(object? sender, PlayitAgentState newState)
-        {
-            switch (newState)
-            {
-                case PlayitAgentState.WaitingForClaim:
-                    ShowPlayitStatusBanner(
-                        "Playit.gg setup required",
-                        "Approve the agent in your browser to finish linking PocketMC. If you closed the claim page, click Fix to restart the setup flow.");
-                    break;
-
-                case PlayitAgentState.Connected:
-                    HidePlayitStatusBanner();
-                    _ = RefreshPlayitHealthAsync(TimeSpan.Zero, retryCount: 8);
-                    break;
-
-                case PlayitAgentState.Starting:
-                    _ = RefreshPlayitHealthAsync(TimeSpan.FromSeconds(1), retryCount: 3);
-                    break;
-            }
-        }
-
-        private void OnPlayitTunnelRunning(object? sender, EventArgs e)
-        {
-            HidePlayitStatusBanner();
-            _ = RefreshPlayitHealthAsync(TimeSpan.Zero, retryCount: 8);
-        }
-
-        private async Task RefreshPlayitHealthAsync(TimeSpan initialDelay, int retryCount = 1, TimeSpan? retryDelay = null)
-        {
-            int refreshVersion = Interlocked.Increment(ref _playitHealthRefreshVersion);
-            TimeSpan effectiveRetryDelay = retryDelay ?? TimeSpan.FromSeconds(2);
-
-            if (initialDelay > TimeSpan.Zero)
-            {
-                await Task.Delay(initialDelay);
-            }
-
-            for (int attempt = 1; attempt <= Math.Max(1, retryCount); attempt++)
-            {
-                try
-                {
-                    var result = await _playitApiClient.GetTunnelsAsync();
-                    if (refreshVersion != Volatile.Read(ref _playitHealthRefreshVersion))
-                    {
-                        return;
-                    }
-
-                    if (result.Success)
-                    {
-                        HidePlayitStatusBanner(refreshVersion);
-                        return;
-                    }
-
-                    if (result.RequiresClaim)
-                    {
-                        if (_playitAgentService.State == PlayitAgentState.Connected && attempt < retryCount)
-                        {
-                            await Task.Delay(effectiveRetryDelay);
-                            continue;
-                        }
-
-                        ShowPlayitStatusBanner(
-                            "Playit.gg setup required",
-                            "PocketMC is still waiting for Playit account approval. Finish the claim in your browser, or click Fix to restart the setup flow.",
-                            refreshVersion: refreshVersion);
-                        return;
-                    }
-
-                    if (result.IsTokenInvalid)
-                    {
-                        ShowPlayitStatusBanner(
-                            "⚠ Playit.gg: token invalid",
-                            "The saved Playit credentials were rejected. Click Fix to reset the local token and re-link your account.",
-                            isTokenInvalid: true,
-                            refreshVersion: refreshVersion);
-                        return;
-                    }
-
-                    if (_playitAgentService.State == PlayitAgentState.Connected && attempt < retryCount)
-                    {
-                        await Task.Delay(effectiveRetryDelay);
-                        continue;
-                    }
-
-                    // Non-auth API failures should not leave a stale invalid banner on screen.
-                    HidePlayitStatusBanner(refreshVersion);
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to check Playit health on attempt {Attempt}.", attempt);
-
-                    if (refreshVersion != Volatile.Read(ref _playitHealthRefreshVersion))
-                    {
-                        return;
-                    }
-
-                    if (attempt < retryCount)
-                    {
-                        await Task.Delay(effectiveRetryDelay);
-                        continue;
-                    }
-
-                    if (_playitAgentService.State == PlayitAgentState.Connected)
-                    {
-                        HidePlayitStatusBanner(refreshVersion);
-                    }
-                }
-            }
-        }
-
-        private void ShowPlayitStatusBanner(string title, string detail, bool isTokenInvalid = false, bool isBinaryMissing = false, int? refreshVersion = null)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                if (refreshVersion.HasValue && refreshVersion.Value != Volatile.Read(ref _playitHealthRefreshVersion))
-                {
-                    return;
-                }
-
-                TxtPlayitStatus.Inlines.Clear();
-                TxtPlayitStatus.Inlines.Add(new System.Windows.Documents.Run(title) { FontWeight = FontWeights.Bold });
-                TxtPlayitDetail.Text = detail;
-                PlayitStatusBanner.Visibility = Visibility.Visible;
-                
-                // Tag the button so we know what to do
-                BtnFixPlayit.Tag = isBinaryMissing ? "DOWNLOAD" : "RESET";
-            });
-        }
-
-        private void HidePlayitStatusBanner(int? refreshVersion = null)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                if (refreshVersion.HasValue && refreshVersion.Value != Volatile.Read(ref _playitHealthRefreshVersion))
-                {
-                    return;
-                }
-
-                PlayitStatusBanner.Visibility = Visibility.Collapsed;
-            });
-        }
-
-        private async void BtnFixPlayit_Click(object sender, RoutedEventArgs e)
-        {
-            if (BtnFixPlayit.Tag?.ToString() == "DOWNLOAD")
-            {
-                // Open playit.gg download or guide flow
-                Process.Start(new ProcessStartInfo { FileName = "https://playit.gg/download", UseShellExecute = true });
-            }
-            else
-            {
-                // Reset token flow (D-02)
-                string tomlPath = _settingsManager.GetPlayitTomlPath(_applicationState.Settings);
-                
-                try
-                {
-                    await FileUtils.DeleteFileAsync(tomlPath);
-                    
-                    // Restart agent to get a new claim URL
-                    _playitAgentService.Stop();
-                    // Wait a bit and restart
-                    await Task.Delay(500);
-                    _playitAgentService.Start();
-                    
-                    HidePlayitStatusBanner();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Could not reset the Playit config at {TomlPath}.", tomlPath);
-                    System.Windows.MessageBox.Show("Could not reset Playit config: " + ex.Message);
-                }
-            }
         }
 
         private int _metricTicks = 0;
@@ -357,8 +144,6 @@ namespace PocketMC.Desktop.Views
                 {
                     var result = await _playitApiClient.GetTunnelsAsync();
                     if (!result.Success) return;
-
-                    HidePlayitStatusBanner();
 
                     foreach (var vm in missingTunnels)
                     {
@@ -445,7 +230,15 @@ namespace PocketMC.Desktop.Views
         {
             var vm = GetViewModel(sender);
             if (vm != null)
-                NavigationService.Navigate(ActivatorUtilities.CreateInstance<ServerSettingsPage>(_serviceProvider, vm.Metadata));
+            {
+                var page = ActivatorUtilities.CreateInstance<ServerSettingsPage>(_serviceProvider, vm.Metadata);
+                var mainWindow = Window.GetWindow(this) as MainWindow;
+
+                if (mainWindow?.NavigateToDetailPage(page, "Server Settings") != true)
+                {
+                    NavigationService?.Navigate(page);
+                }
+            }
         }
 
         private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
@@ -601,7 +394,13 @@ namespace PocketMC.Desktop.Views
             var process = _serverProcessManager.GetProcess(vm.Id);
             if (process != null)
             {
-                NavigationService.Navigate(ActivatorUtilities.CreateInstance<ServerConsolePage>(_serviceProvider, vm.Metadata, process));
+                var page = ActivatorUtilities.CreateInstance<ServerConsolePage>(_serviceProvider, vm.Metadata, process);
+                var mainWindow = Window.GetWindow(this) as MainWindow;
+
+                if (mainWindow?.NavigateToDetailPage(page, "Console") != true)
+                {
+                    NavigationService?.Navigate(page);
+                }
             }
         }
 
@@ -613,11 +412,24 @@ namespace PocketMC.Desktop.Views
 
         private void BtnNewInstance_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = _serviceProvider.GetRequiredService<NewInstanceDialog>();
-            dialog.Owner = Window.GetWindow(this);
-            if (dialog.ShowDialog() == true)
+            try
             {
-                LoadInstances();
+                var page = _serviceProvider.GetRequiredService<NewInstancePage>();
+                var mainWindow = Window.GetWindow(this) as MainWindow;
+
+                if (mainWindow?.NavigateToDetailPage(page, "New Instance") != true)
+                {
+                    NavigationService?.Navigate(page);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to open the New Instance page.");
+                System.Windows.MessageBox.Show(
+                    "PocketMC could not open the New Instance page. The error was logged, and the app stayed open so you can keep working.\n\nPlease restart the app and try again.",
+                    "Could Not Open New Instance Page",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
         }
 

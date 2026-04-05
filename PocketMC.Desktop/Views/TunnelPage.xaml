@@ -1,0 +1,150 @@
+<Page x:Class="PocketMC.Desktop.Views.TunnelPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Tunnel">
+
+    <Grid Margin="36,24,36,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <ui:TextBlock FontTypography="Title" Text="Tunnel" Foreground="White" Margin="0,0,0,4"/>
+            <TextBlock Text="Manage the Playit.gg agent, download the tunnel binary, and retry connections without leaving PocketMC."
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                       TextWrapping="Wrap"
+                       FontSize="13"/>
+        </StackPanel>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="20"
+                Margin="0,0,0,20">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                    <TextBlock Text="Agent Status"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               FontSize="12"
+                               Margin="0,0,0,4"/>
+                    <TextBlock x:Name="TxtStatusValue"
+                               Text="Checking..."
+                               Foreground="#F9E2AF"
+                               FontSize="26"
+                               FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TxtStatusDetail"
+                               Text="Preparing tunnel diagnostics..."
+                               Margin="0,6,0,0"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <Border Grid.Row="1"
+                        Background="#12FFFFFF"
+                        CornerRadius="8"
+                        Padding="12"
+                        Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Agent Path"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   FontSize="12"
+                                   Margin="0,0,0,4"/>
+                        <TextBlock x:Name="TxtExecutablePath"
+                                   Text=""
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Grid.Row="2" Margin="0,0,0,12">
+                    <ProgressBar x:Name="DownloadProgressBar"
+                                 Height="6"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 Value="0"
+                                 Visibility="Collapsed"/>
+                    <TextBlock x:Name="TxtDownloadProgress"
+                               Text=""
+                               Margin="0,8,0,0"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Visibility="Collapsed"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="3" Orientation="Horizontal">
+                    <ui:Button x:Name="BtnDownloadAgent"
+                               Content="Download Agent"
+                               Icon="{ui:SymbolIcon ArrowDownload24}"
+                               Appearance="Primary"
+                               Click="BtnDownloadAgent_Click"
+                               Cursor="Hand"
+                               Margin="0,0,8,0"/>
+                    <ui:Button x:Name="BtnConnect"
+                               Content="Connect"
+                               Icon="{ui:SymbolIcon Play24}"
+                               Appearance="Secondary"
+                               Click="BtnConnect_Click"
+                               Cursor="Hand"
+                               Margin="0,0,8,0"/>
+                    <ui:Button x:Name="BtnRefresh"
+                               Content="Refresh"
+                               Icon="{ui:SymbolIcon ArrowSync24}"
+                               Appearance="Secondary"
+                               Click="BtnRefresh_Click"
+                               Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="20">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <ui:TextBlock Grid.Row="0"
+                              FontTypography="Subtitle"
+                              Text="Active Tunnels"
+                              Foreground="White"
+                              Margin="0,0,0,6"/>
+                <TextBlock x:Name="TxtTunnelListStatus"
+                           Grid.Row="1"
+                           Text="No tunnel data yet."
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                           Margin="0,0,0,12"
+                           TextWrapping="Wrap"/>
+                <ListView x:Name="TunnelList"
+                          Grid.Row="2"
+                          Visibility="Collapsed"
+                          BorderThickness="0"
+                          Background="Transparent">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" Width="220"/>
+                            <GridViewColumn Header="Local Port" DisplayMemberBinding="{Binding Port}" Width="100"/>
+                            <GridViewColumn Header="Public Address" DisplayMemberBinding="{Binding PublicAddress}" Width="320"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

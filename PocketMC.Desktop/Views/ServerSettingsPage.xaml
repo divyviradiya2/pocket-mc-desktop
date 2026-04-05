@@ -6,9 +6,166 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       mc:Ignorable="d" 
       d:DesignHeight="700" d:DesignWidth="800"
-      Title="Server Settings">
+      Title="Server Settings"
+      Background="Transparent">
 
-    <Grid Background="#1E1E1E">
+    <Page.Resources>
+        <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#3B434C"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}" Color="#F5F5F5"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#3B434C"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#F5F5F5"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#2289B4FA"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#14697F99"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#FFFFFF"/>
+
+        <Style x:Key="SettingsSidebarItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,11"/>
+            <Setter Property="Margin" Value="0,2,0,2"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="ItemBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="10"
+                                Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <Border x:Name="SelectionStrip"
+                                        Width="3"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Stretch"
+                                        Margin="0,4,0,4"
+                                        CornerRadius="2"
+                                        Background="#4CC2FF"
+                                        Visibility="Collapsed"/>
+                                <ContentPresenter Margin="14,0,0,0"
+                                                  VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#1F89B4FA"/>
+                                <Setter TargetName="SelectionStrip" Property="Visibility" Value="Visible"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsSelected" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#10FFFFFF"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style TargetType="{x:Type ui:TextBox}">
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#1489B4FA"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#2289B4FA"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="Margin" Value="0,4,0,4"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="{x:Type ui:ToggleSwitch}">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="Margin" Value="0,6,0,6"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style TargetType="{x:Type ui:Button}">
+            <Setter Property="MinHeight" Value="38"/>
+            <Setter Property="Padding" Value="14,8"/>
+        </Style>
+
+        <Style TargetType="Expander">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+        </Style>
+
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="RowBackground" Value="Transparent"/>
+            <Setter Property="AlternatingRowBackground" Value="#0BFFFFFF"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#18FFFFFF"/>
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#16FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,6"/>
+        </Style>
+    </Page.Resources>
+
+    <Grid Margin="28,20,28,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -16,63 +173,77 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="#2D2D30" Padding="20">
-            <TextBlock Text="Server Configuration &amp; Setup" Foreground="White" FontSize="20" FontWeight="Bold"/>
-        </Border>
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <ui:TextBlock FontTypography="Title"
+                          Text="Server Settings"
+                          Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                          Margin="0,0,0,4"/>
+            <TextBlock Text="Configure properties, worlds, plugins, mods, backups, and crash recovery in PocketMC's native workflow."
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                       FontSize="13"
+                       TextWrapping="Wrap"/>
+        </StackPanel>
 
         <!-- Sidebar Layout -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220"/>
+                <ColumnDefinition Width="230"/>
+                <ColumnDefinition Width="20"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
             <!-- Side Bar (Category List) -->
-            <Border Grid.Column="0" Background="#252526" BorderBrush="#3F3F46" BorderThickness="0,0,1,0">
-                <ListBox x:Name="SidebarList" Background="Transparent" BorderThickness="0" Margin="8,16" 
+            <ui:Card Grid.Column="0" Padding="8">
+                <ListBox x:Name="SidebarList"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ItemContainerStyle="{StaticResource SettingsSidebarItemStyle}"
                          SelectionChanged="SidebarList_SelectionChanged">
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                            <Setter Property="Background" Value="Transparent"/>
-                            <Setter Property="BorderThickness" Value="0"/>
-                            <Setter Property="Padding" Value="12,10"/>
-                            <Setter Property="Margin" Value="0,2"/>
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <Border CornerRadius="6" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter VerticalAlignment="Center"/>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                            <Style.Triggers>
-                                <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Background" Value="#007ACC"/>
-                                    <Setter Property="Foreground" Value="White"/>
-                                </Trigger>
-                                <MultiTrigger>
-                                    <MultiTrigger.Conditions>
-                                        <Condition Property="IsMouseOver" Value="True"/>
-                                        <Condition Property="IsSelected" Value="False"/>
-                                    </MultiTrigger.Conditions>
-                                    <Setter Property="Background" Value="#3E3E42"/>
-                                </MultiTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                    
-                    <ListBoxItem Content="Properties" IsSelected="True" Foreground="White"/>
-                    <ListBoxItem Content="Worlds" Foreground="White"/>
-                    <ListBoxItem Content="Plugins" Foreground="White"/>
-                    <ListBoxItem Content="Mods" Foreground="White"/>
-                    <ListBoxItem Content="Backups" Foreground="White"/>
-                    <ListBoxItem Content="Crash &amp; Restart" Foreground="White"/>
+                    <ListBoxItem IsSelected="True">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="Settings24" Margin="0,0,10,0"/>
+                            <TextBlock Text="Properties" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="Folder24" Margin="0,0,10,0"/>
+                            <TextBlock Text="Worlds" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="Add24" Margin="0,0,10,0"/>
+                            <TextBlock Text="Plugins" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="FolderZip24" Margin="0,0,10,0"/>
+                            <TextBlock Text="Mods" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="ArrowDownload24" Margin="0,0,10,0"/>
+                            <TextBlock Text="Backups" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="ArrowSync24" Margin="0,0,10,0"/>
+                            <TextBlock Text="Crash &amp; Restart" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
                 </ListBox>
-            </Border>
+            </ui:Card>
 
             <!-- Content Area (Headerless TabControl) -->
-            <TabControl x:Name="MainTabControl" Grid.Column="1" Background="#1E1E1E" BorderThickness="0" Margin="0">
+            <ui:Card x:Name="ContentAreaCard" Grid.Column="2" Padding="18" RenderTransformOrigin="0.5,0">
+            <ui:Card.RenderTransform>
+                <TranslateTransform/>
+            </ui:Card.RenderTransform>
+            <TabControl x:Name="MainTabControl" Background="Transparent" BorderThickness="0" Margin="0">
                 <TabControl.Resources>
                     <Style TargetType="TabPanel">
                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -81,53 +252,53 @@
             
             <!-- ═══════════════════════ TAB 1: PROPERTIES ═══════════════════════ -->
             <TabItem Header="  Properties  " Foreground="White">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
+                <ScrollViewer x:Name="PropertiesScrollViewer" VerticalScrollBarVisibility="Auto" Padding="0">
                     <StackPanel x:Name="SettingsPanel">
                         <!-- Icon Upload & Instance Metadata -->
-                        <Expander x:Name="ExpanderGeneral" Header="General" IsExpanded="True" Foreground="White" Margin="0,0,0,10">
-                            <StackPanel Margin="10">
-                                <TextBlock Text="Server Icon (64x64 PNG):" Foreground="Silver" Margin="0,5"/>
-                                <Button x:Name="BtnBrowseIcon" Content="Select Icon" Click="BtnBrowseIcon_Click" Width="100" HorizontalAlignment="Left" Padding="5"/>
+                        <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,12">
+                        <Expander x:Name="ExpanderGeneral" Header="General" IsExpanded="False" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0">
+                            <StackPanel Margin="18,14,18,18">
+                                <TextBlock Text="Server Icon (64x64 PNG):" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
+                                <ui:Button x:Name="BtnBrowseIcon" Content="Select Icon" Appearance="Secondary" Click="BtnBrowseIcon_Click" Width="120" HorizontalAlignment="Left"/>
                                 <Image x:Name="ImgIconPreview" Width="64" Height="64" HorizontalAlignment="Left" Margin="0,10,0,10" Stretch="UniformToFill"/>
                                 
-                                <TextBlock Text="MOTD (Message of the Day):" Foreground="Silver" Margin="0,15,0,5"/>
-                                <TextBox x:Name="TxtMotd" TextChanged="TxtMotd_TextChanged" Background="#3E3E42" Foreground="White" Padding="5" />
-                                <TextBlock x:Name="TxtMotdPreview" Foreground="LightGray" Margin="0,5,0,10"/>
+                                <TextBlock Text="MOTD (Message of the Day):" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,15,0,5"/>
+                                <ui:TextBox x:Name="TxtMotd" TextChanged="TxtMotd_TextChanged" />
+                                <TextBlock x:Name="TxtMotdPreview" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5,0,10"/>
 
-                                <TextBlock Text="Java Runtime (Override Path):" Foreground="Silver" Margin="0,15,0,5"/>
+                                <TextBlock Text="Java Runtime (Override Path):" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,15,0,5"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <ui:TextBox x:Name="TxtJavaPath" Background="#3E3E42" Foreground="White" Padding="5" IsReadOnly="False" PlaceholderText="Default (PocketMC-Desktop Runtimes)"/>
-                                    <Button x:Name="BtnBrowseJava" Grid.Column="1" Content="..." Click="BtnBrowseJava_Click" Margin="5,0,0,0" Width="35" Padding="5" Cursor="Hand"/>
+                                    <ui:TextBox x:Name="TxtJavaPath" IsReadOnly="False" PlaceholderText="Default (PocketMC-Desktop Runtimes)"/>
+                                    <ui:Button x:Name="BtnBrowseJava" Grid.Column="1" Content="Browse" Appearance="Secondary" Click="BtnBrowseJava_Click" Margin="8,0,0,0" Cursor="Hand"/>
                                 </Grid>
-                                <TextBlock Text="Note: Leave blank to use PocketMC's automatic internal Java versioning." FontSize="11" Foreground="Gray" Margin="0,5,0,12"/>
+                                <TextBlock Text="Note: Leave blank to use PocketMC's automatic internal Java versioning." FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5,0,12"/>
 
-                                <TextBlock Text="Advanced JVM Arguments:" Foreground="Silver" Margin="0,5,0,5"/>
-                                <TextBox x:Name="TxtAdvancedJvmArgs"
-                                         Background="#3E3E42"
-                                         Foreground="White"
-                                         Padding="5"
-                                         AcceptsReturn="True"
-                                         TextWrapping="Wrap"
-                                         MinHeight="64"/>
+                                <TextBlock Text="Advanced JVM Arguments:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5,0,5"/>
+                                <ui:TextBox x:Name="TxtAdvancedJvmArgs"
+                                            AcceptsReturn="True"
+                                            TextWrapping="Wrap"
+                                            MinHeight="96"/>
                                 <TextBlock Text="One flag per token, for example: -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
                                            FontSize="11"
-                                           Foreground="Gray"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                            Margin="0,5,0,0"/>
                             </StackPanel>
                         </Expander>
+                        </Border>
 
                         <!-- World Properties -->
-                        <Expander x:Name="ExpanderWorld" Header="World" IsExpanded="False" Foreground="White" Margin="0,0,0,10">
-                            <StackPanel Margin="10">
-                                <TextBlock Text="Level Seed (Leave blank for random):" Foreground="Silver" Margin="0,5"/>
-                                <TextBox x:Name="TxtSeed" Background="#3E3E42" Foreground="White" Padding="5" Margin="0,0,0,10"/>
+                        <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,12">
+                        <Expander x:Name="ExpanderWorld" Header="World" IsExpanded="False" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0">
+                            <StackPanel Margin="18,14,18,18">
+                                <TextBlock Text="Level Seed (Leave blank for random):" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
+                                <ui:TextBox x:Name="TxtSeed" Margin="0,0,0,10"/>
 
-                                <TextBlock Text="Level Type:" Foreground="Silver" Margin="0,5"/>
-                                <ComboBox x:Name="CmbLevelType" Background="#3E3E42" Foreground="White" Margin="0,0,0,10">
+                                <TextBlock Text="Level Type:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
+                                <ComboBox x:Name="CmbLevelType" Margin="0,0,0,10">
                                     <ComboBoxItem Content="minecraft:normal" IsSelected="True"/>
                                     <ComboBoxItem Content="minecraft:flat"/>
                                     <ComboBoxItem Content="minecraft:large_biomes"/>
@@ -135,113 +306,108 @@
                                     <ComboBoxItem Content="minecraft:single_biome_surface"/>
                                 </ComboBox>
 
-                                <TextBlock Text="Spawn Protection Area:" Foreground="Silver" Margin="0,5"/>
-                                <TextBox x:Name="TxtSpawnProtection" Background="#3E3E42" Foreground="White" Padding="5" Margin="0,0,0,10"/>
+                                <TextBlock Text="Spawn Protection Area:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
+                                <ui:TextBox x:Name="TxtSpawnProtection" Margin="0,0,0,10"/>
                             </StackPanel>
                         </Expander>
+                        </Border>
 
                         <!-- Memory & Performance Options -->
-                        <Expander x:Name="ExpanderMemory" Header="Memory &amp; Performance" IsExpanded="True" Foreground="White" Margin="0,0,0,10">
-                            <StackPanel Margin="10">
-                                <TextBlock Text="Minimum RAM (Xms):" Foreground="Silver" Margin="0,5"/>
+                        <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,12">
+                        <Expander x:Name="ExpanderMemory" Header="Memory &amp; Performance" IsExpanded="False" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0">
+                            <StackPanel Margin="18,14,18,18">
+                                <TextBlock Text="Minimum RAM (Xms):" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Slider x:Name="SldMinRam" Width="300" Minimum="512" Maximum="16384" TickFrequency="512" ValueChanged="RamSlider_ValueChanged" />
-                                    <TextBlock x:Name="TxtMinRamVal" Text="{Binding ElementName=SldMinRam, Path=Value, StringFormat={}{0:N0} MB}" Margin="10,0,0,0" Foreground="White"/>
+                                    <TextBlock x:Name="TxtMinRamVal" Text="{Binding ElementName=SldMinRam, Path=Value, StringFormat={}{0:N0} MB}" Margin="10,0,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
                                 </StackPanel>
 
-                                <TextBlock Text="Maximum RAM (Xmx):" Foreground="Silver" Margin="0,15,0,5"/>
+                                <TextBlock Text="Maximum RAM (Xmx):" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,15,0,5"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Slider x:Name="SldMaxRam" Width="300" Minimum="512" Maximum="16384" TickFrequency="512" ValueChanged="RamSlider_ValueChanged" />
-                                    <TextBlock x:Name="TxtMaxRamVal" Text="{Binding ElementName=SldMaxRam, Path=Value, StringFormat={}{0:N0} MB}" Margin="10,0,0,0" Foreground="White"/>
+                                    <TextBlock x:Name="TxtMaxRamVal" Text="{Binding ElementName=SldMaxRam, Path=Value, StringFormat={}{0:N0} MB}" Margin="10,0,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
                                 </StackPanel>
 
-                                <TextBlock x:Name="TxtRamWarning" Text="WARNING: Allocation exceeds 80% of physical memory!" Foreground="Red" FontWeight="Bold" Margin="0,10,0,0" Visibility="Collapsed"/>
+                                <TextBlock x:Name="TxtRamWarning" Text="WARNING: Allocation exceeds 80% of physical memory!" Foreground="#FFB4AB" FontWeight="Bold" Margin="0,10,0,0" Visibility="Collapsed"/>
                             </StackPanel>
                         </Expander>
+                        </Border>
 
                         <!-- Players Options -->
-                        <Expander x:Name="ExpanderPlayers" Header="Players" IsExpanded="False" Foreground="White" Margin="0,0,0,10">
-                            <StackPanel Margin="10">
-                                <TextBlock Text="Max Players:" Foreground="Silver" Margin="0,5"/>
-                                <TextBox x:Name="TxtMaxPlayers" Text="20" Background="#3E3E42" Foreground="White" Padding="5" Margin="0,0,0,10"/>
+                        <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,12">
+                        <Expander x:Name="ExpanderPlayers" Header="Players" IsExpanded="False" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0">
+                            <StackPanel Margin="18,14,18,18">
+                                <TextBlock Text="Max Players:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
+                                <ui:TextBox x:Name="TxtMaxPlayers" Text="20" Margin="0,0,0,10"/>
                                 
-                                <CheckBox x:Name="ChkOnlineMode" Content="Online Mode (Authenticate with Mojang)" IsChecked="True" Foreground="White" Margin="0,5"/>
-                                <CheckBox x:Name="ChkPvp" Content="PvP Enabled" IsChecked="True" Foreground="White" Margin="0,5"/>
-                                <CheckBox x:Name="ChkWhiteList" Content="Whitelist Enabled" IsChecked="False" Foreground="White" Margin="0,5"/>
+                                <ui:ToggleSwitch x:Name="ChkOnlineMode" Content="Online Mode (Authenticate with Mojang)" OnContent="On" OffContent="Off" IsChecked="True"/>
+                                <ui:ToggleSwitch x:Name="ChkPvp" Content="PvP Enabled" OnContent="On" OffContent="Off" IsChecked="True"/>
+                                <ui:ToggleSwitch x:Name="ChkWhiteList" Content="Whitelist Enabled" OnContent="On" OffContent="Off" IsChecked="False"/>
                             </StackPanel>
                         </Expander>
+                        </Border>
 
                         <!-- Network Options -->
-                        <Expander x:Name="ExpanderNetwork" Header="Network" IsExpanded="False" Foreground="White" Margin="0,0,0,10">
-                            <StackPanel Margin="10">
-                                <TextBlock Text="Server Port:" Foreground="Silver" Margin="0,5"/>
-                                <TextBox x:Name="TxtServerPort" Text="25565" Background="#3E3E42" Foreground="White" Padding="5" Margin="0,0,0,10"/>
-                                <TextBlock Text="Server IP (Leave blank for default):" Foreground="Silver" Margin="0,5"/>
-                                <TextBox x:Name="TxtServerIp" Background="#3E3E42" Foreground="White" Padding="5" Margin="0,0,0,10"/>
+                        <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,12">
+                        <Expander x:Name="ExpanderNetwork" Header="Network" IsExpanded="False" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0">
+                            <StackPanel Margin="18,14,18,18">
+                                <TextBlock Text="Server Port:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
+                                <ui:TextBox x:Name="TxtServerPort" Text="25565" Margin="0,0,0,10"/>
+                                <TextBlock Text="Server IP (Leave blank for default):" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
+                                <ui:TextBox x:Name="TxtServerIp" Margin="0,0,0,10"/>
                                 
-                                <TextBlock Text="Playit.gg Status:" Foreground="Silver" Margin="0,5"/>
+                                <TextBlock Text="Playit.gg Status:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
                                 <TextBlock x:Name="TxtPlayitAgentStatus" Text="Checking..." Foreground="#F9E2AF" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
 
-                                <TextBlock Text="Playit.gg Public Address:" Foreground="Silver" Margin="0,5"/>
-                                <TextBox x:Name="TxtPlayitAddress" IsReadOnly="True" Background="#2D2D30" Foreground="#89B4FA" Padding="5" Margin="0,0,0,6" 
-                                         BorderBrush="#89B4FA" BorderThickness="1"
-                                         Text="Resolving tunnel from agent..."/>
+                                <TextBlock Text="Playit.gg Public Address:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
+                                <ui:TextBox x:Name="TxtPlayitAddress" IsReadOnly="True" Foreground="#89B4FA" Margin="0,0,0,10" 
+                                            BorderBrush="#89B4FA" BorderThickness="1"
+                                            Text="Resolving tunnel from agent..."/>
                                 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                    <Button x:Name="BtnResolvePlayit" Content="🔄 Refresh Tunnel Address" Click="BtnResolvePlayit_Click" Padding="8,4" Margin="0,0,8,0"/>
-                                    <Button x:Name="BtnOpenPlayitDashboard" Content="🌐 Manage Tunnels" Click="BtnOpenPlayitDashboard_Click" Padding="8,4"/>
+                                    <ui:Button x:Name="BtnResolvePlayit" Content="Refresh Tunnel Address" Appearance="Secondary" Click="BtnResolvePlayit_Click" Margin="0,0,8,0"/>
+                                    <ui:Button x:Name="BtnOpenPlayitDashboard" Content="Manage Tunnels" Appearance="Secondary" Click="BtnOpenPlayitDashboard_Click"/>
                                 </StackPanel>
                             </StackPanel>
                         </Expander>
+                        </Border>
 
                         <!-- Gameplay Options -->
-                        <Expander x:Name="ExpanderGameplay" Header="Gameplay" IsExpanded="False" Foreground="White" Margin="0,0,0,10">
-                            <StackPanel Margin="10">
-                                <TextBlock Text="Gamemode:" Foreground="Silver" Margin="0,5"/>
-                                <ComboBox x:Name="CmbGamemode" Background="#3E3E42" Foreground="White" Margin="0,0,0,10">
+                        <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,12">
+                        <Expander x:Name="ExpanderGameplay" Header="Gameplay" IsExpanded="False" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0">
+                            <StackPanel Margin="18,14,18,18">
+                                <TextBlock Text="Gamemode:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
+                                <ComboBox x:Name="CmbGamemode" Margin="0,0,0,10">
                                     <ComboBoxItem Content="survival" IsSelected="True"/>
                                     <ComboBoxItem Content="creative"/>
                                     <ComboBoxItem Content="adventure"/>
                                     <ComboBoxItem Content="spectator"/>
                                 </ComboBox>
 
-                                <TextBlock Text="Difficulty:" Foreground="Silver" Margin="0,5"/>
-                                <ComboBox x:Name="CmbDifficulty" Background="#3E3E42" Foreground="White" Margin="0,0,0,10">
+                                <TextBlock Text="Difficulty:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,5"/>
+                                <ComboBox x:Name="CmbDifficulty" Margin="0,0,0,10">
                                     <ComboBoxItem Content="peaceful"/>
                                     <ComboBoxItem Content="easy" IsSelected="True"/>
                                     <ComboBoxItem Content="normal"/>
                                     <ComboBoxItem Content="hard"/>
                                 </ComboBox>
 
-                                <CheckBox x:Name="ChkAllowBlock" Content="Allow Command Blocks" Foreground="White" Margin="0,5"/>
-                                <CheckBox x:Name="ChkAllowFlight" Content="Allow Flight" Foreground="White" Margin="0,5"/>
-                                <CheckBox x:Name="ChkAllowNether" Content="Allow Nether" IsChecked="True" Foreground="White" Margin="0,5"/>
+                                <ui:ToggleSwitch x:Name="ChkAllowBlock" Content="Allow Command Blocks" OnContent="On" OffContent="Off"/>
+                                <ui:ToggleSwitch x:Name="ChkAllowFlight" Content="Allow Flight" OnContent="On" OffContent="Off"/>
+                                <ui:ToggleSwitch x:Name="ChkAllowNether" Content="Allow Nether" OnContent="On" OffContent="Off" IsChecked="True"/>
                             </StackPanel>
                         </Expander>
+                        </Border>
 
                         <!-- Advanced Properties -->
-                        <Expander x:Name="ExpanderAdvanced" Header="Advanced Properties" IsExpanded="False" Foreground="White" Margin="0,0,0,10">
-                            <StackPanel Margin="10">
-                                <TextBlock Text="Edit direct server.properties values not covered in the UI." FontSize="11" Foreground="Gray" Margin="0,0,0,10"/>
+                        <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,12">
+                        <Expander x:Name="ExpanderAdvanced" Header="Advanced Properties" IsExpanded="False" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0">
+                            <StackPanel Margin="18,14,18,18">
+                                <TextBlock Text="Edit direct server.properties values not covered in the UI." FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,10"/>
                                 <DataGrid x:Name="AdvancedPropsGrid" AutoGenerateColumns="False" 
-                                          Background="#252526" Foreground="White" BorderBrush="#3F3F46" RowBackground="#252526"
                                           CanUserAddRows="True" CanUserDeleteRows="True" GridLinesVisibility="None"
                                           HeadersVisibility="Column" SelectionMode="Single"
                                           Margin="0,0,0,10" MaxHeight="300">
-                                    <DataGrid.Resources>
-                                        <Style TargetType="DataGridColumnHeader">
-                                            <Setter Property="Background" Value="#333337"/>
-                                            <Setter Property="Foreground" Value="Silver"/>
-                                            <Setter Property="Padding" Value="5"/>
-                                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                            <Setter Property="BorderBrush" Value="#3F3F46"/>
-                                        </Style>
-                                        <Style TargetType="TextBox">
-                                            <Setter Property="Background" Value="#3E3E42"/>
-                                            <Setter Property="Foreground" Value="White"/>
-                                            <Setter Property="BorderThickness" Value="0"/>
-                                        </Style>
-                                    </DataGrid.Resources>
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Property Key" Binding="{Binding Key}" Width="*" />
                                         <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="*" />
@@ -249,153 +415,175 @@
                                 </DataGrid>
                             </StackPanel>
                         </Expander>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
             <!-- ═══════════════════════ TAB 2: WORLDS ═══════════════════════ -->
             <TabItem Header="  Worlds  " Foreground="White">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
-                    <StackPanel Margin="20">
-                        <TextBlock x:Name="TxtWorldStatus" Text="Checking world..." Foreground="White" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBlock x:Name="TxtWorldSize" Foreground="Silver" FontSize="12" Margin="0,0,0,20"/>
+                <ScrollViewer x:Name="WorldsScrollViewer" VerticalScrollBarVisibility="Auto" Padding="0">
+                    <ui:Card Padding="20">
+                    <StackPanel>
+                        <TextBlock x:Name="TxtWorldStatus" Text="Checking world..." Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <TextBlock x:Name="TxtWorldSize" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12" Margin="0,0,0,20"/>
                         
-                        <TextBlock x:Name="TxtWorldLockWarning" Text="⚠ Server is running — stop the server before managing worlds." 
-                                   Foreground="#FF6B6B" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,15"/>
+                        <TextBlock x:Name="TxtWorldLockWarning" Text="Server is running — stop the server before managing worlds." 
+                                   Foreground="#FFB4AB" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,15"/>
                         
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <Button x:Name="BtnUploadWorld" Content="📦 Upload World (ZIP)" Click="BtnUploadWorld_Click" 
-                                    Padding="12,8" Background="#007ACC" Foreground="White" Margin="0,0,10,0"/>
-                            <Button x:Name="BtnDeleteWorld" Content="🗑 Delete Current World" Click="BtnDeleteWorld_Click" 
-                                    Padding="12,8" Background="#C62828" Foreground="White"/>
+                            <ui:Button x:Name="BtnUploadWorld" Content="Upload World (ZIP)" Click="BtnUploadWorld_Click" 
+                                       Appearance="Primary" Margin="0,0,10,0"/>
+                            <ui:Button x:Name="BtnDeleteWorld" Content="Delete Current World" Click="BtnDeleteWorld_Click" 
+                                       Appearance="Danger"/>
                         </StackPanel>
                         
-                        <TextBlock x:Name="TxtWorldProgress" Foreground="LimeGreen" Visibility="Collapsed" Margin="0,10,0,0"/>
+                        <TextBlock x:Name="TxtWorldProgress" Foreground="#A6E3A1" Visibility="Collapsed" Margin="0,10,0,0"/>
                     </StackPanel>
+                    </ui:Card>
                 </ScrollViewer>
             </TabItem>
 
             <!-- ═══════════════════════ TAB 3: PLUGINS ═══════════════════════ -->
             <TabItem x:Name="TabPlugins" Header="  Plugins  " Foreground="White">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
-                    <StackPanel Margin="20">
-                        <TextBlock x:Name="TxtPluginLockWarning" Text="⚠ Server is running — stop the server before managing plugins." 
-                                   Foreground="#FF6B6B" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,15"/>
+                <ScrollViewer x:Name="PluginsScrollViewer" VerticalScrollBarVisibility="Auto" Padding="0">
+                    <ui:Card Padding="20">
+                    <StackPanel>
+                        <TextBlock x:Name="TxtPluginLockWarning" Text="Server is running — stop the server before managing plugins." 
+                                   Foreground="#FFB4AB" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,15"/>
                         
-                        <TextBlock x:Name="TxtVanillaWarning" Text="⚠ Vanilla servers do not support plugins. Switch to Paper for plugin support." 
-                                   Foreground="Orange" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,15"/>
+                        <TextBlock x:Name="TxtVanillaWarning" Text="Vanilla servers do not support plugins. Switch to Paper for plugin support." 
+                                   Foreground="#F9E2AF" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,15"/>
                         
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                            <Button x:Name="BtnAddPlugin" Content="➕ Add Plugin (.jar)" Click="BtnAddPlugin_Click" 
-                                    Padding="12,8" Background="#007ACC" Foreground="White" Margin="0,0,8,0"/>
-                            <Button x:Name="BtnBrowseModrinthPlugins" Content="🌐 Browse Modrinth" Click="BtnBrowseModrinth_Click"
-                                    Tag="project_type:plugin" Padding="12,8" Background="#2D2D30" Foreground="White"/>
+                            <ui:Button x:Name="BtnAddPlugin" Content="Add Plugin (.jar)" Click="BtnAddPlugin_Click" 
+                                       Appearance="Primary" Margin="0,0,8,0"/>
+                            <ui:Button x:Name="BtnBrowseModrinthPlugins" Content="Browse Modrinth" Click="BtnBrowseModrinth_Click"
+                                       Tag="project_type:plugin" Appearance="Secondary"/>
                         </StackPanel>
                         
                         <ItemsControl x:Name="PluginList"/>
                     </StackPanel>
+                    </ui:Card>
                 </ScrollViewer>
             </TabItem>
 
             <!-- ═══════════════════════ TAB 4: MODS ═══════════════════════ -->
             <TabItem Header="  Mods  " Foreground="White">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
-                    <StackPanel Margin="20">
-                        <TextBlock x:Name="TxtModLockWarning" Text="⚠ Server is running — stop the server before managing mods." 
-                                   Foreground="#FF6B6B" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,15"/>
+                <ScrollViewer x:Name="ModsScrollViewer" VerticalScrollBarVisibility="Auto" Padding="0">
+                    <ui:Card Padding="20">
+                    <StackPanel>
+                        <TextBlock x:Name="TxtModLockWarning" Text="Server is running — stop the server before managing mods." 
+                                   Foreground="#FFB4AB" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,15"/>
                         
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                            <Button x:Name="BtnAddMod" Content="➕ Add Mod (.jar)" Click="BtnAddMod_Click" 
-                                    Padding="12,8" Background="#007ACC" Foreground="White" Margin="0,0,8,0"/>
-                            <Button x:Name="BtnBrowseModrinthMods" Content="🌐 Browse Modrinth" Click="BtnBrowseModrinth_Click"
-                                    Tag="project_type:mod" Padding="12,8" Background="#2D2D30" Foreground="White"/>
+                            <ui:Button x:Name="BtnAddMod" Content="Add Mod (.jar)" Click="BtnAddMod_Click" 
+                                       Appearance="Primary" Margin="0,0,8,0"/>
+                            <ui:Button x:Name="BtnBrowseModrinthMods" Content="Browse Modrinth" Click="BtnBrowseModrinth_Click"
+                                       Tag="project_type:mod" Appearance="Secondary"/>
                         </StackPanel>
                         
                         <ItemsControl x:Name="ModList"/>
                     </StackPanel>
+                    </ui:Card>
                 </ScrollViewer>
             </TabItem>
 
             <!-- ═══════════════════════ TAB 5: BACKUPS ═══════════════════════ -->
             <TabItem Header="  Backups  " Foreground="White">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
-                    <StackPanel Margin="20">
+                <ScrollViewer x:Name="BackupsScrollViewer" VerticalScrollBarVisibility="Auto" Padding="0">
+                    <StackPanel>
 
                         <!-- Manual Backup -->
-                        <TextBlock Text="Manual Backup" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <Button x:Name="BtnCreateBackup" Content="📦 Create Backup Now" Click="BtnCreateBackup_Click" 
-                                    Padding="12,8" Background="#007ACC" Foreground="White" Margin="0,0,10,0"/>
-                        </StackPanel>
-                        <TextBlock x:Name="TxtBackupProgress" Foreground="LimeGreen" Visibility="Collapsed" Margin="0,0,0,15"/>
+                        <ui:Card Padding="20" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Manual Backup" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <ui:Button x:Name="BtnCreateBackup" Content="Create Backup Now" Click="BtnCreateBackup_Click" 
+                                               Appearance="Primary" Margin="0,0,10,0"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TxtBackupProgress" Foreground="#A6E3A1" Visibility="Collapsed" Margin="0,0,0,0"/>
+                            </StackPanel>
+                        </ui:Card>
 
                         <!-- Schedule Settings -->
-                        <TextBlock Text="Automatic Schedule" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,10,0,10"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <TextBlock Text="Backup Every:" Foreground="Silver" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <ComboBox x:Name="CmbBackupInterval" Background="#3E3E42" Foreground="White" Width="150"
-                                      SelectionChanged="CmbBackupInterval_Changed">
-                                <ComboBoxItem Content="Manual Only" Tag="0"/>
-                                <ComboBoxItem Content="Every 6 Hours" Tag="6"/>
-                                <ComboBoxItem Content="Every 12 Hours" Tag="12"/>
-                                <ComboBoxItem Content="Every 24 Hours" Tag="24"/>
-                            </ComboBox>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                            <TextBlock Text="Keep Max:" Foreground="Silver" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <ComboBox x:Name="CmbMaxBackups" Background="#3E3E42" Foreground="White" Width="150"
-                                      SelectionChanged="CmbMaxBackups_Changed">
-                                <ComboBoxItem Content="5 backups" Tag="5"/>
-                                <ComboBoxItem Content="10 backups" Tag="10"/>
-                                <ComboBoxItem Content="20 backups" Tag="20"/>
-                                <ComboBoxItem Content="50 backups" Tag="50"/>
-                            </ComboBox>
-                        </StackPanel>
+                        <ui:Card Padding="20" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Automatic Schedule" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Backup Every:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <ComboBox x:Name="CmbBackupInterval" Width="150"
+                                              SelectionChanged="CmbBackupInterval_Changed">
+                                        <ComboBoxItem Content="Manual Only" Tag="0"/>
+                                        <ComboBoxItem Content="Every 6 Hours" Tag="6"/>
+                                        <ComboBoxItem Content="Every 12 Hours" Tag="12"/>
+                                        <ComboBoxItem Content="Every 24 Hours" Tag="24"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                                    <TextBlock Text="Keep Max:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <ComboBox x:Name="CmbMaxBackups" Width="150"
+                                              SelectionChanged="CmbMaxBackups_Changed">
+                                        <ComboBoxItem Content="5 backups" Tag="5"/>
+                                        <ComboBoxItem Content="10 backups" Tag="10"/>
+                                        <ComboBoxItem Content="20 backups" Tag="20"/>
+                                        <ComboBoxItem Content="50 backups" Tag="50"/>
+                                    </ComboBox>
+                                </StackPanel>
+                            </StackPanel>
+                        </ui:Card>
 
                         <!-- Backup List -->
-                        <TextBlock Text="Available Backups" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,10,0,10"/>
-                        <TextBlock x:Name="TxtBackupLockWarning" Text="⚠ Server must be stopped to restore backups." 
-                                   Foreground="#FF6B6B" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,10"/>
-                        <ItemsControl x:Name="BackupList"/>
+                        <ui:Card Padding="20">
+                            <StackPanel>
+                                <TextBlock Text="Available Backups" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                <TextBlock x:Name="TxtBackupLockWarning" Text="Server must be stopped to restore backups." 
+                                           Foreground="#FFB4AB" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,10"/>
+                                <ItemsControl x:Name="BackupList"/>
+                            </StackPanel>
+                        </ui:Card>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
             <!-- ═══════════════════════ TAB 6: CRASH & RESTART ═══════════════════════ -->
             <TabItem Header="  Crash &amp; Restart  " Foreground="White">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
-                    <StackPanel Margin="20">
+                <ScrollViewer x:Name="CrashRestartScrollViewer" VerticalScrollBarVisibility="Auto" Padding="0">
+                    <ui:Card Padding="20">
+                    <StackPanel>
 
-                        <TextBlock Text="Crash Recovery" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBlock Text="Configure automatic restarts when the server crashes unexpectedly." Foreground="Silver" TextWrapping="Wrap" Margin="0,0,0,15"/>
+                        <TextBlock Text="Crash Recovery" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <TextBlock Text="Configure automatic restarts when the server crashes unexpectedly." Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,15"/>
 
-                        <CheckBox x:Name="ChkEnableAutoRestart" Content="Enable Auto-Restart on Crash" Foreground="White" Margin="0,0,0,20"/>
+                        <ui:ToggleSwitch x:Name="ChkEnableAutoRestart" Content="Enable Auto-Restart on Crash" OnContent="On" OffContent="Off" Margin="0,0,0,20"/>
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                            <TextBlock Text="Max Auto-Restarts:" Foreground="Silver" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBox x:Name="TxtMaxAutoRestarts" Background="#3E3E42" Foreground="White" Width="60" Text="3" Padding="2"/>
-                            <TextBlock Text=" times" Foreground="Silver" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                            <TextBlock Text="Max Auto-Restarts:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ui:TextBox x:Name="TxtMaxAutoRestarts" Width="76" Text="3"/>
+                            <TextBlock Text=" times" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="5,0,0,0"/>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                            <TextBlock Text="Restart Delay:" Foreground="Silver" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBox x:Name="TxtAutoRestartDelay" Background="#3E3E42" Foreground="White" Width="60" Text="10" Padding="2"/>
-                            <TextBlock Text=" seconds" Foreground="Silver" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                            <TextBlock Text="Restart Delay:" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ui:TextBox x:Name="TxtAutoRestartDelay" Width="76" Text="10"/>
+                            <TextBlock Text=" seconds" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="5,0,0,0"/>
                         </StackPanel>
 
                     </StackPanel>
+                    </ui:Card>
                 </ScrollViewer>
             </TabItem>
         </TabControl>
+        </ui:Card>
         </Grid>
 
         <!-- Footer Actions -->
-        <Border Grid.Row="2" Background="#2D2D30" Padding="15">
+        <Grid Grid.Row="2" Margin="0,18,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button x:Name="BtnCancel" Content="Cancel" Width="80" Margin="0,0,10,0" Padding="5,5" Click="BtnCancel_Click"/>
-                <Button x:Name="BtnSave" Content="Save Configurations" Width="140" Padding="5,5" Background="#007ACC" Foreground="White" Click="BtnSave_Click"/>
+                <ui:Button x:Name="BtnCancel" Content="Cancel" Appearance="Secondary" Margin="0,0,10,0" Click="BtnCancel_Click"/>
+                <ui:Button x:Name="BtnSave" Content="Save Configurations" Appearance="Primary" Click="BtnSave_Click"/>
             </StackPanel>
-        </Border>
+        </Grid>
 
     </Grid>
 </Page>

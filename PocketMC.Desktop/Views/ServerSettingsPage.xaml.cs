@@ -5,15 +5,21 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Collections.ObjectModel;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using Microsoft.Extensions.Logging;
 using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Services;
 using PocketMC.Desktop.Utils;
+using UiButton = Wpf.Ui.Controls.Button;
+using ControlAppearance = Wpf.Ui.Controls.ControlAppearance;
 
 namespace PocketMC.Desktop.Views
 {
@@ -36,6 +42,9 @@ namespace PocketMC.Desktop.Views
         private ulong _totalSystemRamMb;
         private bool _hasUnsavedChanges = false;
         private bool _isLoading = false;
+        private bool _isSynchronizingTabSelection;
+        private readonly MouseWheelEventHandler _settingsPagePreviewMouseWheelHandler;
+        private bool _isForwardingMouseWheel;
 
         public ServerSettingsPage(
             InstanceMetadata metadata,
@@ -48,6 +57,7 @@ namespace PocketMC.Desktop.Views
             ILogger<ServerSettingsPage> logger)
         {
             InitializeComponent();
+            _settingsPagePreviewMouseWheelHandler = OnSettingsPagePreviewMouseWheel;
             _instanceManager = instanceManager;
             _serverProcessManager = serverProcessManager;
             _worldManager = worldManager;
@@ -66,27 +76,21 @@ namespace PocketMC.Desktop.Views
             LoadBackupTab();
             LoadCrashRestartTab();
 
-            // Tab change handler to refresh lock states
-            MainTabControl.SelectionChanged += (s, e) =>
-            {
-                if (e.Source is TabControl)
-                {
-                    RefreshLockStates();
-                    // Sync sidebar selection if it drifted (e.g. initial load)
-                    if (SidebarList.SelectedIndex != MainTabControl.SelectedIndex)
-                        SidebarList.SelectedIndex = MainTabControl.SelectedIndex;
-                }
-            };
+            Loaded += ServerSettingsPage_Loaded;
+            Unloaded += ServerSettingsPage_Unloaded;
+
+            MainTabControl.SelectionChanged += MainTabControl_SelectionChanged;
 
             // Force initial selection (U-FIX: ensures Properties shows up on open)
             SidebarList.SelectedIndex = 0;
             MainTabControl.SelectedIndex = 0;
             RefreshLockStates();
 
-            // Track changes across all inputs in the settings panel
-            SettingsPanel.AddHandler(TextBox.TextChangedEvent, new TextChangedEventHandler(OnSettingChanged));
-            SettingsPanel.AddHandler(CheckBox.ClickEvent, new RoutedEventHandler(OnSettingChanged));
-            SettingsPanel.AddHandler(ComboBox.SelectionChangedEvent, new SelectionChangedEventHandler(OnSettingChanged));
+            // Track changes across the full settings page, not just the properties tab.
+            AddHandler(TextBox.TextChangedEvent, new TextChangedEventHandler(OnTrackedTextChanged), true);
+            AddHandler(ComboBox.SelectionChangedEvent, new SelectionChangedEventHandler(OnTrackedSelectionChanged), true);
+            AddHandler(ToggleButton.CheckedEvent, new RoutedEventHandler(OnTrackedToggleChanged), true);
+            AddHandler(ToggleButton.UncheckedEvent, new RoutedEventHandler(OnTrackedToggleChanged), true);
             SldMinRam.ValueChanged += OnSettingChanged;
             SldMaxRam.ValueChanged += OnSettingChanged;
         }
@@ -96,12 +100,197 @@ namespace PocketMC.Desktop.Views
             if (!_isLoading) _hasUnsavedChanges = true;
         }
 
+        private void ServerSettingsPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            AddHandler(UIElement.PreviewMouseWheelEvent, _settingsPagePreviewMouseWheelHandler, true);
+            QueueTabTransitionAnimation();
+        }
+
+        private void ServerSettingsPage_Unloaded(object sender, RoutedEventArgs e)
+        {
+            RemoveHandler(UIElement.PreviewMouseWheelEvent, _settingsPagePreviewMouseWheelHandler);
+        }
+
         private void SidebarList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_isSynchronizingTabSelection)
+            {
+                return;
+            }
+
             if (SidebarList != null && MainTabControl != null && SidebarList.SelectedIndex != -1)
             {
                 MainTabControl.SelectedIndex = SidebarList.SelectedIndex;
             }
+        }
+
+        private void OnTrackedTextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (e.OriginalSource is TextBox)
+            {
+                OnSettingChanged(sender, e);
+            }
+        }
+
+        private void OnTrackedSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e.OriginalSource is ComboBox)
+            {
+                OnSettingChanged(sender, e);
+            }
+        }
+
+        private void OnTrackedToggleChanged(object sender, RoutedEventArgs e)
+        {
+            if (e.OriginalSource is ToggleButton)
+            {
+                OnSettingChanged(sender, e);
+            }
+        }
+
+        private void MainTabControl_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (e.Source is not TabControl)
+            {
+                return;
+            }
+
+            RefreshLockStates();
+
+            if (SidebarList.SelectedIndex != MainTabControl.SelectedIndex)
+            {
+                _isSynchronizingTabSelection = true;
+                SidebarList.SelectedIndex = MainTabControl.SelectedIndex;
+                _isSynchronizingTabSelection = false;
+            }
+
+            QueueTabTransitionAnimation();
+        }
+
+        private void QueueTabTransitionAnimation()
+        {
+            if (!IsLoaded)
+            {
+                return;
+            }
+
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(AnimateContentAreaTransition));
+        }
+
+        private void AnimateContentAreaTransition()
+        {
+            if (ContentAreaCard == null)
+            {
+                return;
+            }
+
+            ContentAreaCard.BeginAnimation(OpacityProperty, null);
+            if (ContentAreaCard.RenderTransform is TranslateTransform translateTransform)
+            {
+                translateTransform.BeginAnimation(TranslateTransform.YProperty, null);
+                translateTransform.Y = 8;
+                translateTransform.BeginAnimation(
+                    TranslateTransform.YProperty,
+                    new DoubleAnimation(8, 0, TimeSpan.FromMilliseconds(180))
+                    {
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    });
+            }
+
+            ContentAreaCard.Opacity = 0;
+            ContentAreaCard.BeginAnimation(
+                OpacityProperty,
+                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180))
+                {
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                });
+        }
+
+        private void OnSettingsPagePreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (_isForwardingMouseWheel || e.OriginalSource is not DependencyObject source)
+            {
+                return;
+            }
+
+            if (FindAncestor<ScrollBar>(source) != null)
+            {
+                return;
+            }
+
+            ComboBox? comboBox = FindAncestor<ComboBox>(source);
+            if (comboBox?.IsDropDownOpen == true)
+            {
+                return;
+            }
+
+            ScrollViewer? activeScrollViewer = GetActiveTabScrollViewer();
+            if (activeScrollViewer == null || activeScrollViewer.ScrollableHeight <= 0)
+            {
+                return;
+            }
+
+            e.Handled = true;
+
+            try
+            {
+                _isForwardingMouseWheel = true;
+                int steps = Math.Max(1, Math.Abs(e.Delta) / Mouse.MouseWheelDeltaForOneLine) * 3;
+                for (int i = 0; i < steps; i++)
+                {
+                    if (e.Delta > 0)
+                    {
+                        activeScrollViewer.LineUp();
+                    }
+                    else
+                    {
+                        activeScrollViewer.LineDown();
+                    }
+                }
+            }
+            finally
+            {
+                _isForwardingMouseWheel = false;
+            }
+        }
+
+        private ScrollViewer? GetActiveTabScrollViewer()
+        {
+            return MainTabControl.SelectedIndex switch
+            {
+                0 => PropertiesScrollViewer,
+                1 => WorldsScrollViewer,
+                2 => PluginsScrollViewer,
+                3 => ModsScrollViewer,
+                4 => BackupsScrollViewer,
+                5 => CrashRestartScrollViewer,
+                _ => null
+            };
+        }
+
+        private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
+        {
+            while (current != null)
+            {
+                if (current is T match)
+                {
+                    return match;
+                }
+
+                DependencyObject? visualParent = null;
+                try
+                {
+                    visualParent = VisualTreeHelper.GetParent(current);
+                }
+                catch
+                {
+                    // Some popup-hosted elements can throw here; fall back to logical ancestry.
+                }
+
+                current = visualParent ?? LogicalTreeHelper.GetParent(current);
+            }
+
+            return null;
         }
 
         // ════════════════════════════════════════════════
@@ -273,9 +462,9 @@ namespace PocketMC.Desktop.Views
                 if (!result.Success)
                 {
                     TxtPlayitAddress.Text = result.RequiresClaim
-                        ? "⚠️ Setup still pending. Finish the Playit claim flow from Dashboard."
+                        ? "⚠️ Setup still pending. Finish the Playit claim flow from Tunnel."
                         : result.IsTokenInvalid
-                            ? "⚠️ Token invalid. Re-link account via Dashboard."
+                            ? "⚠️ Token invalid. Re-link account via Tunnel."
                             : "⚠️ API unreachable.";
                     return;
                 }
@@ -362,8 +551,17 @@ namespace PocketMC.Desktop.Views
                 if (result == MessageBoxResult.No) return;
             }
 
+            var mainWindow = Window.GetWindow(this) as MainWindow;
+            if (mainWindow?.NavigateBackFromDetail() == true)
+            {
+                return;
+            }
+
             if (NavigationService?.CanGoBack == true)
+            {
                 NavigationService.GoBack();
+                return;
+            }
         }
 
         private void BtnBrowseJava_Click(object sender, RoutedEventArgs e)
@@ -559,20 +757,14 @@ namespace PocketMC.Desktop.Views
                 var fi = new FileInfo(jar);
                 string apiVersion = PluginScanner.TryGetApiVersion(jar) ?? "Unknown";
                 string pluginName = PluginScanner.TryGetPluginName(jar) ?? fi.Name;
-                
+
                 // Only flag as incompatible if the plugin requires a NEWER API
                 // than the server provides. Backward compat is guaranteed by Spigot/Paper:
                 // e.g. api-version 1.14 on server 1.20.4 = FINE (backward compatible)
                 // e.g. api-version 1.21 on server 1.20.4 = MISMATCH (too new)
                 bool mismatch = PluginScanner.IsIncompatible(apiVersion == "Unknown" ? null : apiVersion, _metadata.MinecraftVersion);
 
-                var row = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromRgb(0x3E, 0x3E, 0x42)),
-                    CornerRadius = new CornerRadius(4),
-                    Padding = new Thickness(12, 8, 12, 8),
-                    Margin = new Thickness(0, 0, 0, 6)
-                };
+                var row = CreateSettingsItemCard();
 
                 var grid = new Grid();
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -583,13 +775,13 @@ namespace PocketMC.Desktop.Views
                 var nameText = new TextBlock
                 {
                     Text = pluginName + (mismatch ? "  ⚠ Version Mismatch" : ""),
-                    Foreground = mismatch ? Brushes.Orange : Brushes.White,
+                    Foreground = mismatch ? Brushes.Orange : GetThemeBrush("TextFillColorPrimaryBrush", Colors.White),
                     FontWeight = FontWeights.SemiBold
                 };
                 var detailText = new TextBlock
                 {
                     Text = $"Size: {Math.Round(fi.Length / 1024.0, 1)} KB  |  API: {apiVersion}  |  Modified: {fi.LastWriteTime:yyyy-MM-dd}",
-                    Foreground = Brushes.Silver,
+                    Foreground = GetThemeBrush("TextFillColorSecondaryBrush", Colors.Silver),
                     FontSize = 11
                 };
                 infoPanel.Children.Add(nameText);
@@ -597,16 +789,7 @@ namespace PocketMC.Desktop.Views
                 Grid.SetColumn(infoPanel, 0);
                 grid.Children.Add(infoPanel);
 
-                var deleteBtn = new Button
-                {
-                    Content = "🗑",
-                    Padding = new Thickness(8, 4, 8, 4),
-                    Background = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)),
-                    Foreground = Brushes.White,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Tag = jar,
-                    IsEnabled = !_serverProcessManager.IsRunning(_metadata.Id)
-                };
+                var deleteBtn = CreateActionButton("Remove", ControlAppearance.Danger, jar, !_serverProcessManager.IsRunning(_metadata.Id));
                 deleteBtn.Click += DeletePlugin_Click;
                 Grid.SetColumn(deleteBtn, 2);
                 grid.Children.Add(deleteBtn);
@@ -617,12 +800,7 @@ namespace PocketMC.Desktop.Views
 
             if (jars.Length == 0)
             {
-                PluginList.Items.Add(new TextBlock
-                {
-                    Text = "No plugins installed.",
-                    Foreground = Brushes.Gray,
-                    FontStyle = FontStyles.Italic
-                });
+                PluginList.Items.Add(CreateEmptyStateText("No plugins installed."));
             }
 
             RefreshLockStates();
@@ -707,13 +885,7 @@ namespace PocketMC.Desktop.Views
             {
                 var fi = new FileInfo(jar);
 
-                var row = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromRgb(0x3E, 0x3E, 0x42)),
-                    CornerRadius = new CornerRadius(4),
-                    Padding = new Thickness(12, 8, 12, 8),
-                    Margin = new Thickness(0, 0, 0, 6)
-                };
+                var row = CreateSettingsItemCard();
 
                 var grid = new Grid();
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -723,28 +895,19 @@ namespace PocketMC.Desktop.Views
                 infoPanel.Children.Add(new TextBlock
                 {
                     Text = fi.Name,
-                    Foreground = Brushes.White,
+                    Foreground = GetThemeBrush("TextFillColorPrimaryBrush", Colors.White),
                     FontWeight = FontWeights.SemiBold
                 });
                 infoPanel.Children.Add(new TextBlock
                 {
                     Text = $"Size: {Math.Round(fi.Length / 1024.0, 1)} KB  |  Modified: {fi.LastWriteTime:yyyy-MM-dd}",
-                    Foreground = Brushes.Silver,
+                    Foreground = GetThemeBrush("TextFillColorSecondaryBrush", Colors.Silver),
                     FontSize = 11
                 });
                 Grid.SetColumn(infoPanel, 0);
                 grid.Children.Add(infoPanel);
 
-                var deleteBtn = new Button
-                {
-                    Content = "🗑",
-                    Padding = new Thickness(8, 4, 8, 4),
-                    Background = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)),
-                    Foreground = Brushes.White,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Tag = jar,
-                    IsEnabled = !_serverProcessManager.IsRunning(_metadata.Id)
-                };
+                var deleteBtn = CreateActionButton("Remove", ControlAppearance.Danger, jar, !_serverProcessManager.IsRunning(_metadata.Id));
                 deleteBtn.Click += DeleteMod_Click;
                 Grid.SetColumn(deleteBtn, 1);
                 grid.Children.Add(deleteBtn);
@@ -755,12 +918,7 @@ namespace PocketMC.Desktop.Views
 
             if (jars.Length == 0)
             {
-                ModList.Items.Add(new TextBlock
-                {
-                    Text = "No mods installed.",
-                    Foreground = Brushes.Gray,
-                    FontStyle = FontStyles.Italic
-                });
+                ModList.Items.Add(CreateEmptyStateText("No mods installed."));
             }
 
             RefreshLockStates();
@@ -851,12 +1009,7 @@ namespace PocketMC.Desktop.Views
             var backupDir = Path.Combine(_serverDir, "backups");
             if (!Directory.Exists(backupDir))
             {
-                BackupList.Items.Add(new TextBlock
-                {
-                    Text = "No backups yet.",
-                    Foreground = Brushes.Gray,
-                    FontStyle = FontStyles.Italic
-                });
+                BackupList.Items.Add(CreateEmptyStateText("No backups yet."));
                 return;
             }
 
@@ -867,12 +1020,7 @@ namespace PocketMC.Desktop.Views
 
             if (files.Length == 0)
             {
-                BackupList.Items.Add(new TextBlock
-                {
-                    Text = "No backups yet.",
-                    Foreground = Brushes.Gray,
-                    FontStyle = FontStyles.Italic
-                });
+                BackupList.Items.Add(CreateEmptyStateText("No backups yet."));
                 return;
             }
 
@@ -880,13 +1028,7 @@ namespace PocketMC.Desktop.Views
 
             foreach (var file in files)
             {
-                var row = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromRgb(0x3E, 0x3E, 0x42)),
-                    CornerRadius = new CornerRadius(4),
-                    Padding = new Thickness(12, 8, 12, 8),
-                    Margin = new Thickness(0, 0, 0, 6)
-                };
+                var row = CreateSettingsItemCard();
 
                 var grid = new Grid();
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -897,42 +1039,24 @@ namespace PocketMC.Desktop.Views
                 info.Children.Add(new TextBlock
                 {
                     Text = file.Name,
-                    Foreground = Brushes.White,
+                    Foreground = GetThemeBrush("TextFillColorPrimaryBrush", Colors.White),
                     FontWeight = FontWeights.SemiBold
                 });
                 info.Children.Add(new TextBlock
                 {
                     Text = $"Size: {Math.Round(file.Length / (1024.0 * 1024.0), 1)} MB  |  Created: {file.CreationTime:yyyy-MM-dd HH:mm}",
-                    Foreground = Brushes.Silver,
+                    Foreground = GetThemeBrush("TextFillColorSecondaryBrush", Colors.Silver),
                     FontSize = 11
                 });
                 Grid.SetColumn(info, 0);
                 grid.Children.Add(info);
 
-                var restoreBtn = new Button
-                {
-                    Content = "🔄 Restore",
-                    Padding = new Thickness(8, 4, 8, 4),
-                    Background = new SolidColorBrush(Color.FromRgb(0x00, 0x7A, 0xCC)),
-                    Foreground = Brushes.White,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 6, 0),
-                    Tag = file.FullName,
-                    IsEnabled = !isRunning
-                };
+                var restoreBtn = CreateActionButton("Restore", ControlAppearance.Primary, file.FullName, !isRunning, new Thickness(0, 0, 6, 0));
                 restoreBtn.Click += RestoreBackup_Click;
                 Grid.SetColumn(restoreBtn, 1);
                 grid.Children.Add(restoreBtn);
 
-                var deleteBtn = new Button
-                {
-                    Content = "🗑",
-                    Padding = new Thickness(8, 4, 8, 4),
-                    Background = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)),
-                    Foreground = Brushes.White,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Tag = file.FullName
-                };
+                var deleteBtn = CreateActionButton("Delete", ControlAppearance.Danger, file.FullName);
                 deleteBtn.Click += DeleteBackup_Click;
                 Grid.SetColumn(deleteBtn, 2);
                 grid.Children.Add(deleteBtn);
@@ -1066,6 +1190,49 @@ namespace PocketMC.Desktop.Views
             ChkEnableAutoRestart.IsChecked = _metadata.EnableAutoRestart;
             TxtMaxAutoRestarts.Text = _metadata.MaxAutoRestarts.ToString();
             TxtAutoRestartDelay.Text = _metadata.AutoRestartDelaySeconds.ToString();
+        }
+
+        private Border CreateSettingsItemCard()
+        {
+            return new Border
+            {
+                Background = GetThemeBrush("CardBackgroundFillColorDefaultBrush", Color.FromRgb(0x2D, 0x33, 0x3B)),
+                BorderBrush = GetThemeBrush("CardStrokeColorDefaultBrush", Color.FromRgb(0x49, 0x4F, 0x58)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(14, 10, 14, 10),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+        }
+
+        private UiButton CreateActionButton(string content, ControlAppearance appearance, object? tag, bool isEnabled = true, Thickness? margin = null)
+        {
+            return new UiButton
+            {
+                Content = content,
+                Appearance = appearance,
+                Padding = new Thickness(12, 6, 12, 6),
+                MinWidth = 84,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = margin ?? new Thickness(0),
+                Tag = tag,
+                IsEnabled = isEnabled
+            };
+        }
+
+        private TextBlock CreateEmptyStateText(string text)
+        {
+            return new TextBlock
+            {
+                Text = text,
+                Foreground = GetThemeBrush("TextFillColorSecondaryBrush", Colors.Gray),
+                FontStyle = FontStyles.Italic
+            };
+        }
+
+        private Brush GetThemeBrush(string resourceKey, Color fallbackColor)
+        {
+            return TryFindResource(resourceKey) as Brush ?? new SolidColorBrush(fallbackColor);
         }
     }
 }

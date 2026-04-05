@@ -16,11 +16,18 @@ public sealed class JavaRuntimeResolverTests : IDisposable
     [InlineData("1.20.4", 17)]
     [InlineData("1.20.5", 21)]
     [InlineData("1.21.1", 21)]
+    [InlineData("1.21.2", 25)]
     [InlineData("1.20.5-pre1", 21)]
     [InlineData("snapshot", 21)]
     public void GetRequiredJavaVersion_MapsMinecraftVersionsToExpectedRuntimes(string minecraftVersion, int expectedJavaVersion)
     {
         Assert.Equal(expectedJavaVersion, JavaRuntimeResolver.GetRequiredJavaVersion(minecraftVersion));
+    }
+
+    [Fact]
+    public void GetBundledJavaVersions_IncludesEveryProvisionedRuntimeVersion()
+    {
+        Assert.Equal(new[] { 8, 11, 17, 21, 25 }, JavaRuntimeResolver.GetBundledJavaVersions());
     }
 
     [Fact]
