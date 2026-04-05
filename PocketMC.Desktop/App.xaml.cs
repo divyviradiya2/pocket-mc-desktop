@@ -32,6 +32,7 @@ public partial class App : Application
                 services.AddSingleton<ApplicationState>();
                 services.AddSingleton<JobObject>();
                 services.AddSingleton<DownloaderService>();
+                services.AddSingleton<JavaProvisioningService>();
                 services.AddSingleton<ServerProcessManager>();
                 services.AddSingleton<ResourceMonitorService>();
                 services.AddSingleton<BackupService>();
@@ -40,9 +41,9 @@ public partial class App : Application
                 services.AddSingleton<PlayitAgentService>();
                 services.AddSingleton<InstanceManager>();
                 services.AddSingleton<WorldManager>();
-                services.AddHttpClient<VanillaProvider>();
-                services.AddHttpClient<FabricProvider>();
-                services.AddHttpClient<ForgeProvider>();
+                services.AddHttpClient<VanillaProvider>(client => client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop"));
+                services.AddHttpClient<FabricProvider>(client => client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop"));
+                services.AddHttpClient<ForgeProvider>(client => client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop"));
                 services.AddSingleton<ModpackService>();
                 services.AddHttpClient<PaperProvider>(client =>
                 {

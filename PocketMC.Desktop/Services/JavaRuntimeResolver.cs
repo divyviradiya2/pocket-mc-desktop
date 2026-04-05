@@ -41,7 +41,7 @@ public static class JavaRuntimeResolver
             return 21;
         }
 
-        // Minecraft 1.21.2+ requires Java 25
+        // Minecraft 1.21.2+ (in 2026) requires Java 25
         return 25;
     }
 
@@ -67,7 +67,7 @@ public static class JavaRuntimeResolver
         return version >= ParseVersion(minInclusive) && version <= ParseVersion(maxInclusive);
     }
 
-    private static bool TryParseVersion(string? rawVersion, out Version version)
+    public static bool TryParseVersion(string? rawVersion, out Version version)
     {
         version = new Version(0, 0);
         if (string.IsNullOrWhiteSpace(rawVersion))

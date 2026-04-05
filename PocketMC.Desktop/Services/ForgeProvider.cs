@@ -24,25 +24,41 @@ namespace PocketMC.Desktop.Services
 
         public async Task<List<MinecraftVersion>> GetAvailableVersionsAsync()
         {
-            // Fetch the official Forge versions JSON
-            var response = await _httpClient.GetFromJsonAsync<JsonObject>("https://files.minecraftforge.net/maven/net/minecraftforge/forge/json");
+            // Fetch the official Forge versions JSON (slim promotions)
+            var response = await _httpClient.GetFromJsonAsync<JsonObject>("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json");
             var versions = new List<MinecraftVersion>();
             
-            if (response != null && response.TryGetPropertyValue("releases", out var releasesNode) && releasesNode is JsonObject releases)
+            if (response != null && response.TryGetPropertyValue("promos", out var promosNode) && promosNode is JsonObject promos)
             {
-                // Forge's JSON structure for releases is basically { "1.20.1": [ "47.2.1", ... ], ... }
-                foreach (var mcVersion in releases)
+                // We extract unique MC versions from the keys
+                var mcVersions = promos
+                    .Select(p => p.Key.Split('-')[0])
+                    .Distinct()
+                    .Where(v => v.StartsWith("1.")); // Filter out junk like "26.1"
+                
+                foreach (var mcVersion in mcVersions)
                 {
                     versions.Add(new MinecraftVersion
                     {
-                        Id = mcVersion.Key,
+                        Id = mcVersion,
                         Type = "release",
                         ReleaseTime = DateTime.MinValue
                     });
                 }
             }
             
-            return versions.OrderByDescending(v => v.Id).ToList();
+            // Numerical sort by segments
+            return versions
+                .OrderByDescending(v => {
+                    var parts = v.Id.Split('.');
+                    long total = 0;
+                    for(int i = 0; i < Math.Min(parts.Length, 3); i++) {
+                        if (long.TryParse(parts[i], out var p))
+                            total += p * (long)Math.Pow(1000, 2 - i);
+                    }
+                    return total;
+                })
+                .ToList();
         }
 
         public async Task DownloadJarAsync(string mcVersion, string destinationPath, IProgress<DownloadProgress>? progress = null)
@@ -61,8 +77,8 @@ namespace PocketMC.Desktop.Services
 
         private async Task<string> GetLatestForgeVersionAsync(string mcVersion)
         {
-            var response = await _httpClient.GetFromJsonAsync<JsonObject>("https://files.minecraftforge.net/maven/net/minecraftforge/forge/json");
-            if (response != null && response.TryGetPropertyValue("promotions", out var promosNode) && promosNode is JsonObject promos)
+            var response = await _httpClient.GetFromJsonAsync<JsonObject>("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json");
+            if (response != null && response.TryGetPropertyValue("promos", out var promosNode) && promosNode is JsonObject promos)
             {
                 // Format: "1.20.1-recommended": "47.2.0"
                 if (promos.TryGetPropertyValue($"{mcVersion}-recommended", out var rec))
@@ -72,15 +88,6 @@ namespace PocketMC.Desktop.Services
                     return lat?.ToString() ?? "0";
             }
             
-            // Fallback to highest in releases
-            if (response != null && response.TryGetPropertyValue("releases", out var releasesNode) && releasesNode is JsonObject releases)
-            {
-                if (releases.TryGetPropertyValue(mcVersion, out var rels) && rels is JsonArray relList)
-                {
-                    return relList.Last()?.ToString() ?? "0";
-                }
-            }
-
             return "latest";
         }
     }

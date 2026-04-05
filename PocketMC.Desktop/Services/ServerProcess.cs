@@ -43,6 +43,7 @@ namespace PocketMC.Desktop.Services
 
         private Process? _process;
         private readonly JobObject _jobObject;
+        private readonly JavaProvisioningService _javaProvisioning;
         private readonly ILogger<ServerProcess> _logger;
         private bool _disposed;
         private volatile bool _intentionalStop;
@@ -66,14 +67,15 @@ namespace PocketMC.Desktop.Services
 
         public Process? GetInternalProcess() => _process;
 
-        public ServerProcess(Guid instanceId, JobObject jobObject, ILogger<ServerProcess> logger)
+        public ServerProcess(Guid instanceId, JobObject jobObject, JavaProvisioningService javaProvisioning, ILogger<ServerProcess> logger)
         {
             InstanceId = instanceId;
             _jobObject = jobObject;
+            _javaProvisioning = javaProvisioning;
             _logger = logger;
         }
 
-        public void Start(InstanceMetadata meta, string workingDir, string appRootPath)
+        public async Task StartAsync(InstanceMetadata meta, string workingDir, string appRootPath)
         {
             if (State != ServerState.Stopped && State != ServerState.Crashed)
                 throw new InvalidOperationException($"Cannot start server — current state is {State}.");
@@ -128,11 +130,56 @@ namespace PocketMC.Desktop.Services
             }
 
             string serverJar = Path.Combine(workingDir, "server.jar");
-            if (!File.Exists(serverJar))
+            string forgeInstaller = Path.Combine(workingDir, "forge-installer.jar");
+            
+            // Check for Forge auto-installation (Arch and Stability improvement)
+            if (meta.ServerType == "Forge" && File.Exists(forgeInstaller) && !Directory.Exists(Path.Combine(workingDir, "libraries")))
             {
-                throw new FileNotFoundException(
-                    $"server.jar not found in:\n{workingDir}\n\n" +
-                    $"Please download a Minecraft server JAR and place it there.");
+                SetState(ServerState.Starting);
+                AppendOutput("[PocketMC] First-time Forge setup detected. Running installer...");
+                
+                var installerPsi = new ProcessStartInfo {
+                    FileName = javaPath,
+                    WorkingDirectory = workingDir,
+                    Arguments = "-jar forge-installer.jar --installServer",
+                    UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true
+                };
+
+                using var proc = Process.Start(installerPsi);
+                if (proc != null) {
+                    await Task.Run(() => ReadStreamAsync(proc.StandardOutput, false));
+                    await Task.Run(() => ReadStreamAsync(proc.StandardError, false));
+                    await proc.WaitForExitAsync();
+                    if (proc.ExitCode == 0) AppendOutput("[PocketMC] Forge installation successful.");
+                    else throw new Exception($"Forge installer failed with exit code {proc.ExitCode}");
+                }
+            }
+
+            // Architecture: Ensure required Java runtime is present and healthy (Auto-Repair)
+            if (string.IsNullOrWhiteSpace(meta.CustomJavaPath))
+            {
+                if (!_javaProvisioning.IsJavaVersionPresent(requiredJavaVersion))
+                {
+                    AppendOutput($"[PocketMC] Required Java {requiredJavaVersion} is missing or corrupt. Starting auto-repair...");
+                    try
+                    {
+                        await _javaProvisioning.EnsureJavaAsync(requiredJavaVersion);
+                        AppendOutput($"[PocketMC] Java {requiredJavaVersion} repaired successfully.");
+                        // Re-resolve javaPath after repair
+                        javaPath = JavaRuntimeResolver.ResolveJavaPath(meta, appRootPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Java auto-repair failed for instance {InstanceId}.", InstanceId);
+                        AppendOutput($"[PocketMC] CRITICAL: Java auto-repair failed: {ex.Message}", true);
+                        throw;
+                    }
+                }
+            }
+
+            if (!File.Exists(serverJar) && meta.ServerType != "Forge")
+            {
+                throw new FileNotFoundException($"server.jar not found in:\n{workingDir}");
             }
 
 
@@ -153,13 +200,47 @@ namespace PocketMC.Desktop.Services
             psi.ArgumentList.Add($"-Xms{minRamMb}M");
             psi.ArgumentList.Add($"-Xmx{maxRamMb}M");
 
+            // Performance Improvements: Modern GC for Forge/Heavy servers
+            psi.ArgumentList.Add("-XX:+UseG1GC");
+            psi.ArgumentList.Add("-XX:+ParallelRefProcEnabled");
+            psi.ArgumentList.Add("-XX:MaxGCPauseMillis=200");
+            psi.ArgumentList.Add("-XX:+UnlockExperimentalVMOptions");
+            psi.ArgumentList.Add("-XX:+DisableExplicitGC");
+            psi.ArgumentList.Add("-XX:+AlwaysPreTouch");
+
+            // Performance Improvements: Modern GC for Forge/Heavy servers
+
             foreach (var argument in TokenizeAdvancedJvmArgs(meta.AdvancedJvmArgs))
             {
                 psi.ArgumentList.Add(argument);
             }
 
-            psi.ArgumentList.Add("-jar");
-            psi.ArgumentList.Add("server.jar");
+            // Architecture: Improved launch logic for modern Forge (1.17+)
+            if (meta.ServerType == "Forge" && !File.Exists(serverJar))
+            {
+                // Modern Forge uses bootstrapper logic
+                var winArgs = Directory.GetFiles(workingDir, "win_args.txt", SearchOption.AllDirectories).FirstOrDefault();
+                if (winArgs != null)
+                {
+                    // Relative path from workingDir
+                    string relativeArgs = Path.GetRelativePath(workingDir, winArgs);
+                    psi.ArgumentList.Add($"@{relativeArgs}");
+                }
+                else
+                {
+                    // Fallback to server.jar if it was somehow generated or old Forge (1.16.5-)
+                    if (File.Exists(serverJar)) {
+                        psi.ArgumentList.Add("-jar");
+                        psi.ArgumentList.Add("server.jar");
+                    }
+                }
+            }
+            else
+            {
+                psi.ArgumentList.Add("-jar");
+                psi.ArgumentList.Add("server.jar");
+            }
+            
             psi.ArgumentList.Add("nogui");
 
             SetState(ServerState.Starting);
@@ -246,52 +327,14 @@ namespace PocketMC.Desktop.Services
                 string? line;
                 while ((line = await reader.ReadLineAsync()) != null)
                 {
-                    string sanitizedLine = LogSanitizer.SanitizeConsoleLine(line);
+                    AppendOutput(line, isError);
 
-                    OutputBuffer.Enqueue(sanitizedLine);
-                    if (OutputBuffer.Count > MAX_BUFFER_LINES)
-                        OutputBuffer.TryDequeue(out _);
-
-                    try
+                    // Check output waiters
+                    if (!isError)
                     {
-                        _sessionLogWriter?.WriteLine(sanitizedLine);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "Failed to append output to the session log for instance {InstanceId}.", InstanceId);
-                    }
-
-                    if (isError)
-                        OnErrorLine?.Invoke(sanitizedLine);
-                    else
-                    {
-                        OnOutputLine?.Invoke(sanitizedLine);
-
-                        // State Transition
-                        if (State == ServerState.Starting && sanitizedLine.Contains("Done ("))
-                            SetState(ServerState.Online);
-                            
-                        // Player Tracking
-                        if (sanitizedLine.Contains(" joined the game"))
-                            PlayerCount++;
-                        else if (sanitizedLine.Contains(" left the game"))
-                        {
-                            PlayerCount--;
-                            if (PlayerCount < 0) PlayerCount = 0;
-                        }
-                        else if (sanitizedLine.Contains("players online:"))
-                        {
-                            var match = PlayerCountRegex.Match(sanitizedLine);
-                            if (match.Success && int.TryParse(match.Groups[1].Value, out int count))
-                            {
-                                PlayerCount = count;
-                            }
-                        }
-
-                        // Check output waiters (used by BackupService for save-all sync)
                         foreach (var kvp in _outputWaiters)
                         {
-                            if (kvp.Value.IsMatch(sanitizedLine))
+                            if (kvp.Value.IsMatch(line))
                             {
                                 _outputWaiters.TryRemove(kvp.Key, out _);
                                 kvp.Key.TrySetResult(true);
@@ -307,6 +350,52 @@ namespace PocketMC.Desktop.Services
             catch (InvalidOperationException ex)
             {
                 _logger.LogDebug(ex, "Console stream reader for instance {InstanceId} stopped because the process changed state.", InstanceId);
+            }
+        }
+
+        private void AppendOutput(string line, bool isError = false)
+        {
+            string sanitizedLine = LogSanitizer.SanitizeConsoleLine(line);
+
+            OutputBuffer.Enqueue(sanitizedLine);
+            if (OutputBuffer.Count > MAX_BUFFER_LINES)
+                OutputBuffer.TryDequeue(out _);
+
+            try
+            {
+                _sessionLogWriter?.WriteLine(sanitizedLine);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to append output to the session log for instance {InstanceId}.", InstanceId);
+            }
+
+            if (isError)
+                OnErrorLine?.Invoke(sanitizedLine);
+            else
+            {
+                OnOutputLine?.Invoke(sanitizedLine);
+
+                // State Transition
+                if (State == ServerState.Starting && sanitizedLine.Contains("Done ("))
+                    SetState(ServerState.Online);
+                    
+                // Player Tracking
+                if (sanitizedLine.Contains(" joined the game"))
+                    PlayerCount++;
+                else if (sanitizedLine.Contains(" left the game"))
+                {
+                    PlayerCount--;
+                    if (PlayerCount < 0) PlayerCount = 0;
+                }
+                else if (sanitizedLine.Contains("players online:"))
+                {
+                    var match = PlayerCountRegex.Match(sanitizedLine);
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out int count))
+                    {
+                        PlayerCount = count;
+                    }
+                }
             }
         }
 

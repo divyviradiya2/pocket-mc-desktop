@@ -3,8 +3,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -48,7 +46,6 @@ namespace PocketMC.Desktop.Views
             : new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)); // faint white glass
 
         // ── Status icon (Segoe Fluent glyph) ──
-        // \uE73E = Checkmark, \uE711 = DownArrow (needs download)
         public string StatusIcon => IsInstalled ? "\uE73E" : "\uE896";
         public SolidColorBrush StatusIconForeground => IsInstalled
             ? new SolidColorBrush(Color.FromRgb(0x78, 0xB8, 0xFF))  // calm blue
@@ -100,17 +97,20 @@ namespace PocketMC.Desktop.Views
     {
         private readonly ApplicationState _applicationState;
         private readonly IServiceProvider _serviceProvider;
+        private readonly JavaProvisioningService _javaProvisioning;
         private readonly ILogger<JavaSetupPage> _logger;
         public ObservableCollection<JavaRuntimeEntry> Runtimes { get; } = new();
 
         public JavaSetupPage(
             ApplicationState applicationState,
             IServiceProvider serviceProvider,
+            JavaProvisioningService javaProvisioning,
             ILogger<JavaSetupPage> logger)
         {
             InitializeComponent();
             _applicationState = applicationState;
             _serviceProvider = serviceProvider;
+            _javaProvisioning = javaProvisioning;
             _logger = logger;
             RuntimeList.ItemsSource = Runtimes;
             Loaded += OnLoaded;
@@ -132,6 +132,7 @@ namespace PocketMC.Desktop.Views
 
         /// <summary>
         /// Scans the runtime directory and builds the card list.
+        /// Uses JavaProvisioningService.IsJavaVersionPresent for integrity checks.
         /// </summary>
         private void ScanRuntimes()
         {
@@ -142,8 +143,7 @@ namespace PocketMC.Desktop.Views
             foreach (var version in requiredVersions)
             {
                 string runtimeDir = System.IO.Path.Combine(appRoot, "runtime", $"java{version}");
-                string javaExe = System.IO.Path.Combine(runtimeDir, "bin", "java.exe");
-                bool installed = File.Exists(javaExe) && new FileInfo(javaExe).Length > 20000;
+                bool installed = _javaProvisioning.IsJavaVersionPresent(version);
 
                 string detail;
                 if (installed)
@@ -261,65 +261,31 @@ namespace PocketMC.Desktop.Views
             }
         }
 
+        /// <summary>
+        /// Downloads a single JRE via JavaProvisioningService with progress reporting.
+        /// </summary>
         private async Task AcquireJreAsync(JavaRuntimeEntry entry)
         {
-            using var httpClient = new HttpClient();
-            string apiUrl = $"https://api.adoptium.net/v3/assets/latest/{entry.Version}/hotspot?os=windows&architecture=x64&image_type=jre";
-            string response = await httpClient.GetStringAsync(apiUrl);
+            var progress = new Progress<DownloadProgress>(p =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    entry.Progress = p.Percentage;
+                    if (p.Percentage < 99)
+                    {
+                        entry.DetailText = $"Downloading — {p.BytesRead / 1024 / 1024} MB / {p.TotalBytes / 1024 / 1024} MB";
+                    }
+                    else
+                    {
+                        entry.DetailText = "Extracting...";
+                    }
+                });
+            });
 
-            var array = JsonNode.Parse(response)?.AsArray();
-            var link = array?[0]?["binary"]?["package"]?["link"]?.ToString();
+            await _javaProvisioning.EnsureJavaAsync(entry.Version, progress);
 
-            if (string.IsNullOrEmpty(link))
-                throw new Exception($"Could not find download link for Java {entry.Version}");
-
-            var downloader = new DownloaderService();
             string appRoot = _applicationState.GetRequiredAppRootPath();
-            string tempZipPath = System.IO.Path.Combine(appRoot, "runtime", $"temp_java{entry.Version}.zip");
-            string extractPath = System.IO.Path.Combine(appRoot, "runtime", $"java{entry.Version}_ext");
-            string finalPath = System.IO.Path.Combine(appRoot, "runtime", $"java{entry.Version}");
-
-            entry.DetailText = "Downloading...";
-            var downloadProgress = new Progress<DownloadProgress>(p =>
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    entry.Progress = p.Percentage;
-                    entry.DetailText = $"Downloading — {p.BytesRead / 1024 / 1024} MB / {p.TotalBytes / 1024 / 1024} MB";
-                });
-            });
-
-            await downloader.DownloadFileAsync(link, tempZipPath, downloadProgress);
-
-            entry.DetailText = "Extracting...";
-            entry.Progress = 0;
-            var extractProgress = new Progress<DownloadProgress>(p =>
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    entry.Progress = p.Percentage;
-                    entry.DetailText = $"Extracting — {p.BytesRead} / {p.TotalBytes} files";
-                });
-            });
-
-            if (Directory.Exists(extractPath)) Directory.Delete(extractPath, true);
-            await downloader.ExtractZipAsync(tempZipPath, extractPath, extractProgress);
-
-            var subDirs = Directory.GetDirectories(extractPath);
-            if (subDirs.Length == 1)
-            {
-                if (Directory.Exists(finalPath)) Directory.Delete(finalPath, true);
-                Directory.Move(subDirs[0], finalPath);
-            }
-            else
-            {
-                throw new Exception($"Unexpected zip structure for Java {entry.Version}");
-            }
-
-            Directory.Delete(extractPath, true);
-            File.Delete(tempZipPath);
-
-            entry.Path = finalPath;
+            entry.Path = System.IO.Path.Combine(appRoot, "runtime", $"java{entry.Version}");
         }
 
         // ──────────────────────────────────────────────

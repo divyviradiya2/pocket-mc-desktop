@@ -14,6 +14,7 @@ public class ServerProcessManager
 {
     private readonly JobObject _jobObject;
     private readonly InstanceManager _instanceManager;
+    private readonly JavaProvisioningService _javaProvisioning;
     private readonly ILogger<ServerProcessManager> _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ConcurrentDictionary<Guid, ServerProcess> _activeProcesses = new();
@@ -27,11 +28,13 @@ public class ServerProcessManager
     public ServerProcessManager(
         JobObject jobObject,
         InstanceManager instanceManager,
+        JavaProvisioningService javaProvisioning,
         ILogger<ServerProcessManager> logger,
         ILoggerFactory loggerFactory)
     {
         _jobObject = jobObject;
         _instanceManager = instanceManager;
+        _javaProvisioning = javaProvisioning;
         _logger = logger;
         _loggerFactory = loggerFactory;
     }
@@ -55,7 +58,7 @@ public class ServerProcessManager
     /// Starts a server process for the given instance.
     /// Throws if already running, or if java/server.jar missing.
     /// </summary>
-    public ServerProcess StartProcess(InstanceMetadata meta, string appRootPath)
+    public async Task<ServerProcess> StartProcessAsync(InstanceMetadata meta, string appRootPath)
     {
         if (_activeProcesses.ContainsKey(meta.Id))
         {
@@ -79,6 +82,7 @@ public class ServerProcessManager
         var serverProcess = new ServerProcess(
             meta.Id,
             _jobObject,
+            _javaProvisioning,
             _loggerFactory.CreateLogger<ServerProcess>());
 
         serverProcess.OnStateChanged += state =>
@@ -97,9 +101,15 @@ public class ServerProcessManager
             await HandleServerCrashAsync(meta, appRootPath);
         };
 
-        serverProcess.Start(meta, instancePath, appRootPath);
         _activeProcesses[meta.Id] = serverProcess;
         _historicalProcesses[meta.Id] = serverProcess;
+
+        try {
+            await serverProcess.StartAsync(meta, instancePath, appRootPath);
+        } catch {
+            _activeProcesses.TryRemove(meta.Id, out _);
+            throw;
+        }
 
         return serverProcess;
     }
@@ -162,7 +172,7 @@ public class ServerProcessManager
         if (!cts.IsCancellationRequested)
         {
             _consecutiveRestarts[meta.Id] = attempts + 1;
-            StartProcess(meta, appRootPath);
+            await StartProcessAsync(meta, appRootPath);
         }
     }
 

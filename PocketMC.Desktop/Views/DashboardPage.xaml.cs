@@ -469,7 +469,7 @@ namespace PocketMC.Desktop.Views
                 // Resolve tunnel address before starting (NET-06, NET-09)
                 await ResolveTunnelForInstance(vm);
 
-                _serverProcessManager.StartProcess(vm.Metadata, _applicationState.GetRequiredAppRootPath());
+                await _serverProcessManager.StartProcessAsync(vm.Metadata, _applicationState.GetRequiredAppRootPath());
             }
             catch (Exception ex)
             {

@@ -21,6 +21,8 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             
             <ui:Button Grid.Column="0" Content="Back" Appearance="Secondary" 
@@ -37,11 +39,25 @@
             
             <ui:Button Grid.Column="3" Content="Copy Logs" Appearance="Secondary"
                        Icon="{ui:SymbolIcon Copy24}" Click="BtnCopyLogs_Click" Cursor="Hand" Margin="0,0,8,0"/>
-            <ui:Button Grid.Column="4" Content="Stop Server" Appearance="Danger"
-                       Icon="{ui:SymbolIcon Stop24}" Click="BtnStop_Click" Cursor="Hand" Margin="0,0,8,0"
-                       IsEnabled="{Binding CanStopServer}"/>
-            <ui:Button Grid.Column="5" Content="Restart" Appearance="Secondary"
-                       Icon="{ui:SymbolIcon ArrowSync24}" Click="BtnRestart_Click" Cursor="Hand"/>
+            
+            <ui:TextBox x:Name="TxtLogSearch" Grid.Column="4" PlaceholderText="Search logs..." 
+                        Margin="0,0,8,0" Width="150" VerticalAlignment="Center"
+                        TextChanged="TxtLogSearch_TextChanged"/>
+            
+            <ComboBox x:Name="CmbLogFilter" Grid.Column="5" Margin="0,0,8,0" SelectedIndex="0" VerticalAlignment="Center" Width="140" SelectionChanged="CmbLogFilter_SelectionChanged">
+                <ComboBoxItem Content="All Logs"/>
+                <ComboBoxItem Content="Info +"/>
+                <ComboBoxItem Content="Warnings/Errors"/>
+                <ComboBoxItem Content="Crashes/Exceptions"/>
+            </ComboBox>
+
+            <StackPanel Grid.Column="6" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                <ui:Button Content="Stop Server" Appearance="Danger"
+                           Icon="{ui:SymbolIcon Stop24}" Click="BtnStop_Click" Cursor="Hand" Margin="0,0,8,0"
+                           IsEnabled="{Binding CanStopServer}"/>
+                <ui:Button Content="Restart" Appearance="Secondary"
+                           Icon="{ui:SymbolIcon ArrowSync24}" Click="BtnRestart_Click" Cursor="Hand"/>
+            </StackPanel>
         </Grid>
         
         <!-- Console output area -->
@@ -67,23 +83,32 @@
                     </Grid>
                 </Border>
 
-                <ScrollViewer Grid.Row="1" x:Name="LogScroller" VerticalScrollBarVisibility="Auto" 
-                              HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl x:Name="LogView" ItemsSource="{Binding Logs}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <VirtualizingStackPanel VirtualizationMode="Recycling"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Text}" Foreground="{Binding TextColor}" 
-                                           FontFamily="Consolas" FontSize="13" TextWrapping="Wrap"
-                                           Padding="4,1"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                <!-- Virtualized Log View -->
+                <ListView x:Name="LogView" Grid.Row="1" ItemsSource="{Binding FilteredLogs}" 
+                            Background="Transparent" BorderThickness="0"
+                            ScrollViewer.VerticalScrollBarVisibility="Auto"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                            VirtualizingStackPanel.IsVirtualizing="True"
+                            VirtualizingStackPanel.VirtualizationMode="Recycling">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Text}" Foreground="{Binding TextColor}" 
+                                        FontFamily="Consolas" FontSize="13" TextWrapping="Wrap"
+                                        Padding="4,1"/>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListViewItem">
+                                        <ContentPresenter />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                </ListView>
             </Grid>
         </Border>
         
