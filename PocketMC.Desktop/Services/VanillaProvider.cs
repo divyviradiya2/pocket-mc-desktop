@@ -47,10 +47,16 @@ namespace PocketMC.Desktop.Services
                 {
                     if (v == null) continue;
                     
+                    string id = v["id"]?.ToString() ?? "";
+                    string type = v["type"]?.ToString() ?? "release";
+                    // Some snapshots have 'release' as type in v2 but contain 'w' in id
+                    if (id.Contains("w") || id.Contains("-pre") || id.Contains("-rc") || id.Contains(" Experimental"))
+                        type = "snapshot";
+
                     versions.Add(new MinecraftVersion
                     {
-                        Id = v["id"]?.ToString() ?? "",
-                        Type = v["type"]?.ToString() ?? "",
+                        Id = id,
+                        Type = type,
                         ReleaseTime = DateTime.TryParse(v["releaseTime"]?.ToString(), out var dt) ? dt : DateTime.MinValue
                     });
                 }

@@ -56,17 +56,20 @@ namespace PocketMC.Desktop.Views
     {
         private readonly ApplicationState _applicationState;
         private readonly IServiceProvider _serviceProvider;
+        private readonly JavaProvisioningService _javaProvisioning;
         private readonly ILogger<JavaSetupPage> _logger;
         public ObservableCollection<JreDownloadTask> DownloadTasks { get; } = new();
 
         public JavaSetupPage(
             ApplicationState applicationState,
             IServiceProvider serviceProvider,
+            JavaProvisioningService javaProvisioning,
             ILogger<JavaSetupPage> logger)
         {
             InitializeComponent();
             _applicationState = applicationState;
             _serviceProvider = serviceProvider;
+            _javaProvisioning = javaProvisioning;
             _logger = logger;
             TasksList.ItemsSource = DownloadTasks;
             Loaded += OnLoaded;
@@ -80,9 +83,7 @@ namespace PocketMC.Desktop.Views
 
             foreach (var v in requiredVersions)
             {
-                string exePath = Path.Combine(appRootPath, "runtime", $"java{v}", "bin", "java.exe");
-                // Check if java.exe exists and is a reasonable size (> 20KB) to catch corruption
-                if (!File.Exists(exePath) || new FileInfo(exePath).Length < 20000)
+                if (!_javaProvisioning.IsJavaVersionPresent(v))
                 {
                     DownloadTasks.Add(new JreDownloadTask { Version = v });
                     anyMissing = true;
@@ -127,64 +128,32 @@ namespace PocketMC.Desktop.Views
             task.StatusText = "Downloading...";
             task.StatusColor = Brushes.LightBlue;
 
-            using var httpClient = new HttpClient();
-            string apiUrl = $"https://api.adoptium.net/v3/assets/latest/{task.Version}/hotspot?os=windows&architecture=x64&image_type=jre";
-            string response = await httpClient.GetStringAsync(apiUrl);
-            
-            var array = JsonNode.Parse(response)?.AsArray();
-            var link = array?[0]?["binary"]?["package"]?["link"]?.ToString();
-
-            if (string.IsNullOrEmpty(link))
-                throw new Exception($"Could not find download link for Java {task.Version}");
-
-            var downloader = new DownloaderService();
-            string appRootPath = _applicationState.GetRequiredAppRootPath();
-            string tempZipPath = Path.Combine(appRootPath, "runtime", $"temp_java{task.Version}.zip");
-            string extractPath = Path.Combine(appRootPath, "runtime", $"java{task.Version}_ext");
-            string finalPath = Path.Combine(appRootPath, "runtime", $"java{task.Version}");
-
-            var downloadProgress = new Progress<DownloadProgress>(p =>
+            var progress = new Progress<DownloadProgress>(p =>
             {
                 Dispatcher.Invoke(() =>
                 {
-                    task.ProgressValue = p.Percentage;
-                    task.ProgressText = $"{p.BytesRead / 1024 / 1024} MB / {p.TotalBytes / 1024 / 1024} MB";
+                    if (task.StatusText == "Downloading...")
+                    {
+                        task.ProgressValue = p.Percentage;
+                        task.ProgressText = $"{p.BytesRead / 1024 / 1024} MB / {p.TotalBytes / 1024 / 1024} MB";
+                        
+                        if (task.ProgressValue >= 100)
+                        {
+                            task.StatusText = "Extracting...";
+                            task.StatusColor = Brushes.Orange;
+                            task.ProgressValue = 0;
+                            task.ProgressText = "Preparing extraction...";
+                        }
+                    }
+                    else
+                    {
+                        task.ProgressValue = p.Percentage;
+                        task.ProgressText = $"{p.BytesRead} / {p.TotalBytes} files";
+                    }
                 });
             });
 
-            await downloader.DownloadFileAsync(link, tempZipPath, downloadProgress);
-
-            task.StatusText = "Extracting...";
-            task.StatusColor = Brushes.Orange;
-            task.ProgressValue = 0;
-            
-            var extractProgress = new Progress<DownloadProgress>(p =>
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    task.ProgressValue = p.Percentage;
-                    task.ProgressText = $"{p.BytesRead} / {p.TotalBytes} files";
-                });
-            });
-
-            if (Directory.Exists(extractPath)) Directory.Delete(extractPath, true);
-            await downloader.ExtractZipAsync(tempZipPath, extractPath, extractProgress);
-
-            // Adoptium Zips contain a single root folder (e.g. jdk-17.0.8-jre). We want to move its contents to finalPath
-            var subDirs = Directory.GetDirectories(extractPath);
-            if (subDirs.Length == 1)
-            {
-                if (Directory.Exists(finalPath)) Directory.Delete(finalPath, true);
-                Directory.Move(subDirs[0], finalPath);
-            }
-            else
-            {
-                throw new Exception($"Unexpected zip structure for Java {task.Version}");
-            }
-
-            // Cleanup
-            Directory.Delete(extractPath, true);
-            File.Delete(tempZipPath);
+            await _javaProvisioning.EnsureJavaAsync(task.Version, progress);
 
             task.StatusText = "Done";
             task.StatusColor = Brushes.LimeGreen;

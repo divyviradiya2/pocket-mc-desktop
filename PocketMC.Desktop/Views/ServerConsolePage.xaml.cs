@@ -19,10 +19,21 @@ namespace PocketMC.Desktop.Views
     /// <summary>
     /// Represents a single log line with colorization.
     /// </summary>
+    public enum LogLevel
+    {
+        Trace,
+        Debug,
+        Info,
+        Warn,
+        Error,
+        System
+    }
+
     public class LogLine
     {
         public string Text { get; set; } = string.Empty;
         public Brush TextColor { get; set; } = Brushes.LightGray;
+        public LogLevel Level { get; set; } = LogLevel.Info;
     }
 
     /// <summary>
@@ -39,6 +50,7 @@ namespace PocketMC.Desktop.Views
         private const int MAX_LOG_LINES = 10000;
 
         public ObservableCollection<LogLine> Logs { get; } = new();
+        public ObservableCollection<LogLine> FilteredLogs { get; } = new();
         public ObservableCollection<string> CommandSuggestions { get; } = new();
         private readonly System.Collections.Generic.HashSet<string> _knownCommands = new();
         private readonly System.Collections.Generic.List<string> _commandHistory = new();
@@ -212,22 +224,84 @@ namespace PocketMC.Desktop.Views
         private void FlushPendingLines(object? sender, EventArgs e)
         {
             int count = 0;
-            while (_pendingLines.TryDequeue(out var line) && count < 200)
+            bool addedToFiltered = false;
+            
+            while (_pendingLines.TryDequeue(out var line) && count < 500) // Increased batch size for high-perf
             {
                 Logs.Add(line);
+                if (PassesFilter(line))
+                {
+                    FilteredLogs.Add(line);
+                    addedToFiltered = true;
+                }
                 count++;
             }
 
-            // Trim old lines to prevent unbounded memory growth
-            int excess = Logs.Count - MAX_LOG_LINES;
+            // Trim old lines
+            int excess = Logs.Count - 5000; // Reduced limit for better performance
             for (int i = 0; i < excess; i++)
             {
+                var removed = Logs[0];
                 Logs.RemoveAt(0);
+                if (FilteredLogs.Count > 0 && FilteredLogs[0] == removed)
+                    FilteredLogs.RemoveAt(0);
             }
 
-            // Auto-scroll to bottom
-            if (count > 0 && LogScroller != null && (BtnAutoScroll?.IsChecked ?? true))
-                LogScroller.ScrollToEnd();
+            // Auto-scroll to bottom of the ListView
+            if (addedToFiltered && LogView != null && (BtnAutoScroll?.IsChecked ?? true))
+            {
+                if (FilteredLogs.Count > 0)
+                    LogView.ScrollIntoView(FilteredLogs[^1]);
+            }
+        }
+
+        private bool PassesFilter(LogLine line)
+        {
+            // 1. Apply Search Filter
+            if (TxtLogSearch != null && !string.IsNullOrWhiteSpace(TxtLogSearch.Text))
+            {
+                if (!line.Text.Contains(TxtLogSearch.Text, StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+
+            // 2. Apply Severity Filter
+            if (CmbLogFilter == null) return true;
+            
+            return CmbLogFilter.SelectedIndex switch
+            {
+                // Info +
+                1 => line.Level >= LogLevel.Info,
+                // Warning +
+                2 => line.Level >= LogLevel.Warn,
+                // Error +
+                3 => line.Level >= LogLevel.Error,
+                _ => true
+            };
+        }
+
+        private void TxtLogSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ApplyFilters();
+        }
+
+        private void CmbLogFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ApplyFilters();
+        }
+
+        private void ApplyFilters()
+        {
+            if (FilteredLogs == null) return;
+            
+            FilteredLogs.Clear();
+            foreach (var line in Logs)
+            {
+                if (PassesFilter(line))
+                    FilteredLogs.Add(line);
+            }
+            
+            if (FilteredLogs.Count > 0 && (BtnAutoScroll?.IsChecked ?? true))
+                LogView.ScrollIntoView(FilteredLogs[^1]);
         }
 
         private void LoadSessionLogHistory()
@@ -254,24 +328,65 @@ namespace PocketMC.Desktop.Views
             }
         }
 
+        private static LogLevel _lastLevel = LogLevel.Info;
+
         /// <summary>
-        /// Applies regex colorization based on Minecraft log severity tags.
+        /// Applies regex colorization and severity level based on log tags.
         /// </summary>
         private static LogLine ColorizeLogLine(string text)
         {
             Brush color;
-            if (text.Contains("/WARN]") || text.Contains("[WARN]"))
-                color = Brushes.Yellow;
-            else if (text.Contains("/ERROR]") || text.Contains("[ERROR]") || text.Contains("Exception"))
-                color = Brushes.OrangeRed;
-            else if (text.Contains("/INFO]") || text.Contains("[INFO]"))
-                color = Brushes.LightGray;
-            else if (text.Contains("Done ("))
-                color = Brushes.LimeGreen;
-            else
-                color = Brushes.WhiteSmoke;
+            LogLevel level;
 
-            return new LogLine { Text = text, TextColor = color };
+            // Detection for severity
+            if (text.Contains("/ERROR]") || text.Contains("[ERROR]") || text.Contains("Exception") || text.Contains("Fatal") || text.Contains("Error:"))
+            {
+                color = Brushes.OrangeRed;
+                level = LogLevel.Error;
+            }
+            else if (text.Contains("/WARN]") || text.Contains("[WARN]"))
+            {
+                color = Brushes.Yellow;
+                level = LogLevel.Warn;
+            }
+            else if (text.Contains("/DEBUG]") || text.Contains("[DEBUG]"))
+            {
+                color = Brushes.Cyan;
+                level = LogLevel.Debug;
+            }
+            else if (text.Contains("/TRACE]") || text.Contains("[TRACE]"))
+            {
+                color = Brushes.Gray;
+                level = LogLevel.Trace;
+            }
+            else if (text.Contains("Done (") || text.Contains("Server started"))
+            {
+                color = Brushes.LimeGreen;
+                level = LogLevel.Info;
+            }
+            else if (text.TrimStart().StartsWith("at ") || text.TrimStart().StartsWith("...") || text.Contains("Caused by:"))
+            {
+                // Stack trace line sticky severity
+                color = _lastLevel switch {
+                    LogLevel.Error => Brushes.OrangeRed,
+                    LogLevel.Warn => Brushes.Yellow,
+                    _ => Brushes.WhiteSmoke
+                };
+                level = _lastLevel;
+            }
+            else if (text.StartsWith("> "))
+            {
+                color = Brushes.CornflowerBlue;
+                level = LogLevel.System;
+            }
+            else
+            {
+                color = text.Contains("/INFO]") || text.Contains("[INFO]") ? Brushes.LightGray : Brushes.WhiteSmoke;
+                level = LogLevel.Info;
+            }
+
+            _lastLevel = level;
+            return new LogLine { Text = text, TextColor = color, Level = level };
         }
 
         private async void BtnSend_Click(object sender, RoutedEventArgs e)

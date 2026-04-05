@@ -41,6 +41,8 @@ namespace PocketMC.Desktop.ViewModels
         public bool IsWaitingToRestart => _serverProcessManager.IsWaitingToRestart(Id);
         public bool ShowRunningControls => IsRunning || IsWaitingToRestart;
         public string StopButtonText => IsWaitingToRestart ? "Abort" : "Stop";
+        public string MinecraftVersion => _metadata.MinecraftVersion;
+        public string ServerType => _metadata.ServerType;
 
         public string StatusText => _countdownText ?? _state switch
         {
@@ -184,6 +186,8 @@ namespace PocketMC.Desktop.ViewModels
         {
             OnPropertyChanged(nameof(Name));
             OnPropertyChanged(nameof(Description));
+            OnPropertyChanged(nameof(MinecraftVersion));
+            OnPropertyChanged(nameof(ServerType));
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

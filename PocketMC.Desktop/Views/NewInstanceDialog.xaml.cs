@@ -60,9 +60,23 @@ namespace PocketMC.Desktop.Views
         {
             try
             {
-                CmbVersion.ItemsSource = null;
-                IServerJarProvider provider = GetProvider(serverType);
+                TxtError.Visibility = Visibility.Collapsed;
+                CmbVersion.IsEnabled = false;
+                
+                // Forge doesn't have snapshots in the metadata we pull
+                if (serverType == "Forge")
+                {
+                    ChkShowSnapshots.IsEnabled = false;
+                    ChkShowSnapshots.IsChecked = false;
+                    ChkShowSnapshots.Opacity = 0.5;
+                }
+                else
+                {
+                    ChkShowSnapshots.IsEnabled = true;
+                    ChkShowSnapshots.Opacity = 1.0;
+                }
 
+                IServerJarProvider provider = GetProvider(serverType);
                 var versions = await provider.GetAvailableVersionsAsync();
 
                 if (ChkShowSnapshots.IsChecked != true)
@@ -79,6 +93,10 @@ namespace PocketMC.Desktop.Views
                 TxtError.Text = $"Failed to load versions: {ex.Message}";
                 TxtError.Visibility = Visibility.Visible;
                 _logger.LogWarning(ex, "Failed to load versions for server type {ServerType}.", serverType);
+            }
+            finally
+            {
+                CmbVersion.IsEnabled = true;
             }
         }
 
@@ -121,7 +139,8 @@ namespace PocketMC.Desktop.Views
                 string? instancePath = _instanceManager.GetInstancePath(metadata.Id);
                 if (instancePath == null) throw new Exception("Instance directory could not be resolved.");
 
-                string jarPath = Path.Combine(instancePath, "server.jar");
+                string jarFile = srvType == "Forge" ? "forge-installer.jar" : "server.jar";
+                string jarPath = Path.Combine(instancePath, jarFile);
 
                 // 2. Download Jar
                 IServerJarProvider provider = GetProvider(srvType);

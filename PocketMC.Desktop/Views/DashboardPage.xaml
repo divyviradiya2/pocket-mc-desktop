@@ -103,7 +103,15 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     
-                                    <ui:TextBlock Grid.Column="0" FontTypography="Subtitle" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <ui:TextBlock FontTypography="Subtitle" Text="{Binding Name}" MaxWidth="150" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                                        <Border Background="#33FFFFFF" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding MinecraftVersion, FallbackValue='?'}" FontSize="10" Foreground="Silver" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <Border Background="#3389B4FA" CornerRadius="4" Padding="6,2" Margin="4,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ServerType, FallbackValue='Vanilla'}" FontSize="10" Foreground="#89B4FA" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </StackPanel>
                                     
                                     <ui:Button Grid.Column="1" Appearance="Transparent" Icon="{ui:SymbolIcon MoreVertical24}" 
                                                Click="BtnMoreOptions_Click" Cursor="Hand" Padding="6,4" Margin="0,-6,-6,0" VerticalAlignment="Top">
@@ -187,9 +195,8 @@
                                                    Icon="{ui:SymbolIcon WindowConsole20}" Click="BtnConsole_Click" Cursor="Hand"/>
                                         <ui:Button Content="Settings" Appearance="Secondary" Margin="0,0,4,0"
                                                    Icon="{ui:SymbolIcon Settings24}" Click="BtnManage_Click" Cursor="Hand"/>
-                                        <ui:Button Content="{Binding StopButtonText}" Appearance="Danger" 
-                                                   Icon="{ui:SymbolIcon Stop24}" Click="BtnStop_Click" Cursor="Hand"/>
-                                    </StackPanel>
+                                         <ui:Button Appearance="Secondary" Icon="{ui:SymbolIcon Folder24}" Click="BtnOpenFolder_Click" Cursor="Hand"/>
+                                     </StackPanel>
                                 </Grid>
                             </Grid>
                         </ui:Card>
