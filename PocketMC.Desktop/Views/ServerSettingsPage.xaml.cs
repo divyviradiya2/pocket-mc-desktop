@@ -859,14 +859,12 @@ namespace PocketMC.Desktop.Views
         {
             if (sender is Button btn && btn.Tag is string projectType)
             {
-                var browser = new PluginBrowserWindow(_serverDir, _metadata.MinecraftVersion, projectType);
-                browser.Owner = Window.GetWindow(this);
-                browser.Closed += (s, ev) =>
+                var browserPage = new PluginBrowserPage(_serverDir, _metadata.MinecraftVersion, projectType, () =>
                 {
                     if (projectType.Contains("plugin")) LoadPluginTab();
                     else LoadModTab();
-                };
-                browser.ShowDialog();
+                });
+                NavigationService.Navigate(browserPage);
             }
         }
 

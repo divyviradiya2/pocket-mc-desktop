@@ -435,14 +435,13 @@ namespace PocketMC.Desktop.Views
 
         private void BtnBrowseModpacks_Click(object sender, RoutedEventArgs e)
         {
-            var browser = new PluginBrowserWindow(null, "*", "project_type:modpack");
-            browser.Owner = Window.GetWindow(this);
-            browser.OnModpackDownloaded += async (tempZip) =>
+            var browserPage = new PluginBrowserPage(null, "*", "project_type:modpack");
+            browserPage.OnModpackDownloaded += async (tempZip) =>
             {
                 await ImportModpackAsync(tempZip);
                 try { File.Delete(tempZip); } catch { }
             };
-            browser.ShowDialog();
+            NavigationService.Navigate(browserPage);
         }
 
         private async void BtnImportModpack_Click(object sender, RoutedEventArgs e)
