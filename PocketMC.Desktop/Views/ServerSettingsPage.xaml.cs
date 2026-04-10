@@ -17,6 +17,7 @@ namespace PocketMC.Desktop.Views
             InitializeComponent();
             ViewModel = viewModel;
             DataContext = ViewModel;
+            ViewModel.HostPage = this;
             _previewMouseWheelHandler = OnSettingsPagePreviewMouseWheel;
 
             // Optional UI logic for tab synchronization and animations can remain here
@@ -159,12 +160,21 @@ namespace PocketMC.Desktop.Views
         private bool _isForwardingMouseWheel;
         private void OnSettingsPagePreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            // Similar logic from previous file to forward scroll events
             if (_isForwardingMouseWheel || e.OriginalSource is not DependencyObject source) return;
 
+            // Let scrollbars handle their own wheel events
             if (FindAncestor<ScrollBar>(source) != null) return;
+
+            // Let open ComboBox dropdowns handle their own scrolling
             ComboBox? comboBox = FindAncestor<ComboBox>(source);
             if (comboBox?.IsDropDownOpen == true) return;
+
+            // Let DataGrids with scrollable content handle their own scrolling
+            var dataGrid = FindAncestor<DataGrid>(source);
+            if (dataGrid != null) return;
+
+            // Don't intercept scroll events originating from the sidebar NavigationView
+            if (FindAncestor<Wpf.Ui.Controls.NavigationView>(source) is { } nav && ReferenceEquals(nav, SidebarList)) return;
 
             ScrollViewer? activeScrollViewer = GetActiveTabScrollViewer();
             if (activeScrollViewer == null || activeScrollViewer.ScrollableHeight <= 0) return;

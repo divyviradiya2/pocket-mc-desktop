@@ -34,6 +34,7 @@ namespace PocketMC.Desktop.ViewModels
 
         public InstanceMetadata Metadata { get; }
         public string ServerDir { get; }
+        public System.Windows.Controls.Page? HostPage { get; set; }
 
         private bool _isLoading;
         public bool IsLoading { get => _isLoading; set => SetProperty(ref _isLoading, value); }
@@ -618,7 +619,7 @@ namespace PocketMC.Desktop.ViewModels
             {
                 if (projectType.Contains("plugin")) LoadPlugins();
                 else LoadMods();
-            });
+            }, HostPage, "Server Settings");
 
             if (projectType == "project_type:modpack")
             {

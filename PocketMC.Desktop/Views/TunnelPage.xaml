@@ -107,6 +107,7 @@
             </Grid>
         </Border>
 
+        <!-- Active Tunnels Section -->
         <Border Grid.Row="2"
                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
@@ -131,19 +132,108 @@
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                            Margin="0,0,0,12"
                            TextWrapping="Wrap"/>
-                <ListView x:Name="TunnelList"
-                          Grid.Row="2"
-                          Visibility="Collapsed"
-                          BorderThickness="0"
-                          Background="Transparent">
-                    <ListView.View>
-                        <GridView>
-                            <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" Width="220"/>
-                            <GridViewColumn Header="Local Port" DisplayMemberBinding="{Binding Port}" Width="100"/>
-                            <GridViewColumn Header="Public Address" DisplayMemberBinding="{Binding PublicAddress}" Width="320"/>
-                        </GridView>
-                    </ListView.View>
-                </ListView>
+
+                <!-- Modern card-based tunnel list -->
+                <ItemsControl x:Name="TunnelList"
+                              Grid.Row="2"
+                              Visibility="Collapsed">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#0AFFFFFF"
+                                    BorderBrush="#18FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="16,14"
+                                    Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <!-- Tunnel Name -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                            <ui:SymbolIcon Symbol="Globe24"
+                                                           FontSize="16"
+                                                           Foreground="#89B4FA"
+                                                           Margin="0,0,8,0"/>
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="15"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <!-- Port and Address Info -->
+                                        <Grid Margin="0,0,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="16"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Local Port Badge -->
+                                            <Border Grid.Column="0"
+                                                    Background="#15A6E3A1"
+                                                    BorderBrush="#30A6E3A1"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="10,5">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="Port"
+                                                               FontSize="11"
+                                                               Foreground="#A6E3A1"
+                                                               FontWeight="Medium"
+                                                               Margin="0,0,6,0"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding Port}"
+                                                               FontSize="13"
+                                                               FontWeight="Bold"
+                                                               Foreground="#A6E3A1"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Public Address -->
+                                            <Border Grid.Column="2"
+                                                    Background="#1589B4FA"
+                                                    BorderBrush="#3089B4FA"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="10,5">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <ui:SymbolIcon Symbol="Link24"
+                                                                   FontSize="12"
+                                                                   Foreground="#89B4FA"
+                                                                   Margin="0,0,6,0"/>
+                                                    <TextBlock Text="{Binding PublicAddress}"
+                                                               FontSize="13"
+                                                               FontWeight="Medium"
+                                                               Foreground="#89B4FA"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </StackPanel>
+
+                                    <!-- Copy Button -->
+                                    <ui:Button Grid.Column="1"
+                                               ToolTip="Copy public address"
+                                               Appearance="Secondary"
+                                               Icon="{ui:SymbolIcon Copy24}"
+                                               Padding="8"
+                                               Margin="12,0,0,0"
+                                               VerticalAlignment="Center"
+                                               Click="BtnCopyAddress_Click"
+                                               Tag="{Binding PublicAddress}"
+                                               Cursor="Hand"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </Grid>
         </Border>
     </Grid>

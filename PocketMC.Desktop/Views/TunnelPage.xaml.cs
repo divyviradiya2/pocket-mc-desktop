@@ -288,6 +288,29 @@ namespace PocketMC.Desktop.Views
             TxtTunnelListStatus.Text = message;
         }
 
+        private void BtnCopyAddress_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Wpf.Ui.Controls.Button btn && btn.Tag is string address && !string.IsNullOrEmpty(address))
+            {
+                try
+                {
+                    System.Windows.Clipboard.SetText(address);
+                    btn.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Checkmark24 };
+                    var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                    timer.Tick += (s, args) =>
+                    {
+                        btn.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Copy24 };
+                        timer.Stop();
+                    };
+                    timer.Start();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to copy tunnel address to clipboard.");
+                }
+            }
+        }
+
         private void UpdateActionButtons(bool binaryExists)
         {
             bool partialExists = _applicationState.IsConfigured && File.Exists(_applicationState.GetPlayitExecutablePath() + ".partial");

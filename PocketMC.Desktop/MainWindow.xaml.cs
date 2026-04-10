@@ -110,6 +110,7 @@ public partial class MainWindow : FluentWindow
             nameof(TunnelPage)         => "Tunnel",
             nameof(JavaSetupPage)       => "Java Setup",
             nameof(AboutPage)           => "About",
+            nameof(AppSettingsPage)     => "Settings",
             nameof(NewInstancePage)     => "New Instance",
             nameof(ServerSettingsPage)  => "Server Settings",
             nameof(ServerConsolePage)   => "Console",
@@ -138,7 +139,8 @@ public partial class MainWindow : FluentWindow
         pageType == typeof(DashboardPage) ||
         pageType == typeof(TunnelPage) ||
         pageType == typeof(JavaSetupPage) ||
-        pageType == typeof(AboutPage);
+        pageType == typeof(AboutPage) ||
+        pageType == typeof(AppSettingsPage);
 
     /// <summary>
     /// Allows child pages to navigate within the NavigationView.
@@ -285,6 +287,7 @@ public partial class MainWindow : FluentWindow
         SetNavigationItemActiveState(NavTunnel, ReferenceEquals(targetItem, NavTunnel));
         SetNavigationItemActiveState(NavJavaSetup, ReferenceEquals(targetItem, NavJavaSetup));
         SetNavigationItemActiveState(NavAbout, ReferenceEquals(targetItem, NavAbout));
+        SetNavigationItemActiveState(NavSettings, ReferenceEquals(targetItem, NavSettings));
     }
 
     private void ClearNavigationSelection()
@@ -303,6 +306,7 @@ public partial class MainWindow : FluentWindow
         SetNavigationItemActiveState(NavTunnel, false);
         SetNavigationItemActiveState(NavJavaSetup, false);
         SetNavigationItemActiveState(NavAbout, false);
+        SetNavigationItemActiveState(NavSettings, false);
     }
 
     private NavigationViewItem? GetShellNavigationItem(Type? pageType)
@@ -325,6 +329,11 @@ public partial class MainWindow : FluentWindow
         if (pageType == typeof(AboutPage))
         {
             return NavAbout;
+        }
+
+        if (pageType == typeof(AppSettingsPage))
+        {
+            return NavSettings;
         }
 
         return null;
@@ -565,6 +574,7 @@ public partial class MainWindow : FluentWindow
         NavTunnel.IsEnabled = isEnabled;
         NavJavaSetup.IsEnabled = isEnabled;
         NavAbout.IsEnabled = isEnabled;
+        NavSettings.IsEnabled = isEnabled;
     }
 
     // ──────────────────────────────────────────────

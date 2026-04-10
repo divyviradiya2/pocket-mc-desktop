@@ -26,10 +26,12 @@ namespace PocketMC.Desktop.Views
         private readonly ObservableCollection<ModrinthHit> _results = new();
         private int _currentOffset = 0;
         private System.Threading.CancellationTokenSource? _searchCts;
+        private readonly Page? _returnToPage;
+        private readonly string? _returnToBreadcrumb;
 
         public event Action<string>? OnModpackDownloaded;
 
-        public PluginBrowserPage(string? serverDir, string mcVersion, string projectType, Action? onCompleted = null)
+        public PluginBrowserPage(string? serverDir, string mcVersion, string projectType, Action? onCompleted = null, Page? returnToPage = null, string? returnToBreadcrumb = null)
         {
             InitializeComponent();
             _serverDir = serverDir;
@@ -37,6 +39,8 @@ namespace PocketMC.Desktop.Views
             _projectType = projectType;
             _isModpackMode = projectType.Contains("modpack");
             _onCompleted = onCompleted;
+            _returnToPage = returnToPage;
+            _returnToBreadcrumb = returnToBreadcrumb;
 
             ListResults.ItemsSource = _results;
             TxtTitle.Text = _isModpackMode ? "Modpack Marketplace" : (projectType.Contains("plugin") ? "Plugin Marketplace" : "Mod Marketplace");
@@ -48,7 +52,16 @@ namespace PocketMC.Desktop.Views
         private void BtnBack_Click(object sender, RoutedEventArgs e)
         {
             var mainWindow = Window.GetWindow(this) as MainWindow;
-            if (mainWindow?.NavigateBackFromDetail() == true) return;
+            if (mainWindow == null) return;
+
+            // If we have a parent page to return to, navigate back to it directly
+            if (_returnToPage != null)
+            {
+                mainWindow.NavigateToDetailPage(_returnToPage, _returnToBreadcrumb ?? "Server Settings");
+                return;
+            }
+
+            if (mainWindow.NavigateBackFromDetail()) return;
             if (NavigationService?.CanGoBack == true) NavigationService.GoBack();
         }
 

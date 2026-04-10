@@ -485,13 +485,19 @@
         </Border>
         </Grid>
 
-        <!-- Footer Actions -->
-        <Grid Grid.Row="2" Margin="0,18,0,0">
+        <!-- Footer Actions (pinned at bottom) -->
+        <Border Grid.Row="2"
+                Margin="0,12,0,0"
+                Padding="16,14"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0"
+                CornerRadius="0,0,8,8">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <ui:Button Content="Cancel" Appearance="Secondary" Margin="0,0,10,0" Command="{Binding CancelCommand}"/>
                 <ui:Button Content="Save Configurations" Appearance="Primary" Command="{Binding SaveCommand}"/>
             </StackPanel>
-        </Grid>
+        </Border>
 
     </Grid>
 </Page>
