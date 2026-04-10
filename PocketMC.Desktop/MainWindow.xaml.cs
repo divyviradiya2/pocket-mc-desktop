@@ -573,7 +573,7 @@ public partial class MainWindow : FluentWindow
 
     private void ApplyWin10MicaFallback()
     {
-        if (WallpaperMicaService.IsWindows11OrLater)
+        if (WallpaperMicaService.IsWindows11OrLater || !_applicationState.Settings.EnableMicaEffect)
             return;
 
         var w = (int)Math.Max(ActualWidth, SystemParameters.PrimaryScreenWidth);
@@ -610,6 +610,29 @@ public partial class MainWindow : FluentWindow
     {
         if (e.Category == UserPreferenceCategory.Desktop)
             ApplyWin10MicaFallback();
+    }
+
+    public void RequestMicaUpdate()
+    {
+        bool enableMica = _applicationState.Settings.EnableMicaEffect;
+
+        if (WallpaperMicaService.IsWindows11OrLater)
+        {
+            WindowBackdropType = enableMica 
+                ? Wpf.Ui.Controls.WindowBackdropType.Mica 
+                : Wpf.Ui.Controls.WindowBackdropType.None;
+        }
+        else
+        {
+            if (enableMica)
+            {
+                ApplyWin10MicaFallback();
+            }
+            else
+            {
+                MicaFallbackBackground.Visibility = Visibility.Collapsed;
+            }
+        }
     }
 
     // ──────────────────────────────────────────────
@@ -669,7 +692,8 @@ public partial class MainWindow : FluentWindow
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        ApplyWin10MicaFallback();
+        // Don't apply Mica early unless explicitly loading settings first.
+        // It will be applied during ContinueStartupFlow.
 
         try
         {
@@ -745,6 +769,8 @@ public partial class MainWindow : FluentWindow
     {
         UnlockNavigationAfterRootSetup();
         _applicationState.ApplySettings(settings);
+        
+        RequestMicaUpdate();
 
         if (!_startupServicesStarted)
         {

@@ -132,6 +132,10 @@
 
             <!-- ─── Footer ─── -->
             <ui:NavigationView.FooterMenuItems>
+                <ui:NavigationViewItem x:Name="NavSettings"
+                                       Content="Settings"
+                                       Icon="{ui:SymbolIcon Settings24}"
+                                       TargetPageType="{x:Type views:AppSettingsPage}"/>
                 <ui:NavigationViewItem x:Name="NavAbout"
                                        Content="About"
                                        Icon="{ui:SymbolIcon Info24}"
