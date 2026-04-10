@@ -45,6 +45,7 @@ namespace PocketMC.Desktop.Services
         private readonly ApplicationState _applicationState;
         private readonly SettingsManager _settingsManager;
         private readonly WindowsToastNotificationService _toastNotificationService;
+        private readonly DownloaderService _downloaderService;
         private readonly ILogger<PlayitAgentService> _logger;
         private readonly object _restartLock = new();
         private StreamWriter? _logWriter;
@@ -54,10 +55,13 @@ namespace PocketMC.Desktop.Services
         private volatile bool _manualStopRequested;
         private int _unexpectedRestartAttempts;
         private CancellationTokenSource? _restartDelayCancellation;
+        private CancellationTokenSource? _downloadCancellation;
+        private volatile bool _isDownloadingBinary;
         private const int MaxUnexpectedRestartAttempts = 5;
         private const int BaseUnexpectedRestartDelaySeconds = 2;
 
         public PlayitAgentState State { get; private set; } = PlayitAgentState.Stopped;
+        public bool IsDownloadingBinary => _isDownloadingBinary;
 
         /// <summary>
         /// Fires when the agent outputs a claim URL for first-time setup.
@@ -80,17 +84,29 @@ namespace PocketMC.Desktop.Services
         /// </summary>
         public event EventHandler<int>? OnAgentExited;
 
+        /// <summary>
+        /// Fires when the download progress updates.
+        /// </summary>
+        public event EventHandler<DownloadProgress>? OnDownloadProgressChanged;
+
+        /// <summary>
+        /// Fires when the background download starts or stops.
+        /// </summary>
+        public event EventHandler<bool>? OnDownloadStatusChanged;
+
         public PlayitAgentService(
             ApplicationState applicationState,
             SettingsManager settingsManager,
             JobObject jobObject,
             WindowsToastNotificationService toastNotificationService,
+            DownloaderService downloaderService,
             ILogger<PlayitAgentService> logger)
         {
             _applicationState = applicationState;
             _settingsManager = settingsManager;
             _jobObject = jobObject;
             _toastNotificationService = toastNotificationService;
+            _downloaderService = downloaderService;
             _logger = logger;
         }
 
@@ -98,6 +114,49 @@ namespace PocketMC.Desktop.Services
             _applicationState.IsConfigured && File.Exists(_applicationState.GetPlayitExecutablePath());
 
         public bool IsRunning => _agentProcess != null && !_agentProcess.HasExited;
+
+        public async Task DownloadAgentAsync()
+        {
+            if (IsBinaryAvailable || _isDownloadingBinary) return;
+
+            CancelDownload();
+            _downloadCancellation = new CancellationTokenSource();
+            var token = _downloadCancellation.Token;
+            _isDownloadingBinary = true;
+            OnDownloadStatusChanged?.Invoke(this, true);
+
+            try
+            {
+                var progress = new Progress<DownloadProgress>(p => OnDownloadProgressChanged?.Invoke(this, p));
+                await _downloaderService.EnsurePlayitDownloadedAsync(
+                    _applicationState.GetRequiredAppRootPath(),
+                    progress,
+                    token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("Playit agent download canceled.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to download Playit agent.");
+            }
+            finally
+            {
+                _isDownloadingBinary = false;
+                _downloadCancellation?.Dispose();
+                _downloadCancellation = null;
+                OnDownloadStatusChanged?.Invoke(this, false);
+            }
+        }
+
+        public void CancelDownload()
+        {
+            if (_downloadCancellation != null && !_downloadCancellation.IsCancellationRequested)
+            {
+                _downloadCancellation.Cancel();
+            }
+        }
 
         /// <summary>
         /// Starts the playit.exe agent process (NET-02).

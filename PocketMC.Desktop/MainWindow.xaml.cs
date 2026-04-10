@@ -750,6 +750,13 @@ public partial class MainWindow : FluentWindow
         {
             _backupScheduler.Start();
             _javaProvisioningService.StartBackgroundProvisioning();
+            
+            // On first launch, start downloading Playit in the background.
+            if (!settings.HasCompletedFirstLaunch)
+            {
+                _ = _playitAgentService.DownloadAgentAsync();
+            }
+
             _startupServicesStarted = true;
         }
 

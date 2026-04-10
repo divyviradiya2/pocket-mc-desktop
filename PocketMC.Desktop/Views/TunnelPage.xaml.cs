@@ -24,26 +24,21 @@ namespace PocketMC.Desktop.Views
         }
 
         private readonly ApplicationState _applicationState;
-        private readonly DownloaderService _downloaderService;
         private readonly PlayitAgentService _playitAgentService;
         private readonly PlayitApiClient _playitApiClient;
         private readonly ILogger<TunnelPage> _logger;
         private bool _isSubscribed;
-        private bool _isDownloading;
         private int _refreshVersion;
-        private CancellationTokenSource? _downloadCancellation;
         private TunnelUiState _currentUiState = TunnelUiState.Missing;
 
         public TunnelPage(
             ApplicationState applicationState,
-            DownloaderService downloaderService,
             PlayitAgentService playitAgentService,
             PlayitApiClient playitApiClient,
             ILogger<TunnelPage> logger)
         {
             InitializeComponent();
             _applicationState = applicationState;
-            _downloaderService = downloaderService;
             _playitAgentService = playitAgentService;
             _playitApiClient = playitApiClient;
             _logger = logger;
@@ -61,31 +56,59 @@ namespace PocketMC.Desktop.Views
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
             UnsubscribeFromAgent();
-            CancelDownload();
+            // Important: we no longer cancel download on unload,
+            // as it runs statefully in the background and can complete while another tab is active.
         }
 
         private void SubscribeToAgent()
         {
-            if (_isSubscribed)
-            {
-                return;
-            }
+            if (_isSubscribed) return;
 
             _playitAgentService.OnStateChanged += OnPlayitAgentStateChanged;
             _playitAgentService.OnTunnelRunning += OnPlayitTunnelRunning;
+            _playitAgentService.OnDownloadStatusChanged += OnPlayitDownloadStatusChanged;
+            _playitAgentService.OnDownloadProgressChanged += OnPlayitDownloadProgressChanged;
             _isSubscribed = true;
         }
 
         private void UnsubscribeFromAgent()
         {
-            if (!_isSubscribed)
-            {
-                return;
-            }
+            if (!_isSubscribed) return;
 
             _playitAgentService.OnStateChanged -= OnPlayitAgentStateChanged;
             _playitAgentService.OnTunnelRunning -= OnPlayitTunnelRunning;
+            _playitAgentService.OnDownloadStatusChanged -= OnPlayitDownloadStatusChanged;
+            _playitAgentService.OnDownloadProgressChanged -= OnPlayitDownloadProgressChanged;
             _isSubscribed = false;
+        }
+
+        private void OnPlayitDownloadStatusChanged(object? sender, bool isDownloading)
+        {
+            Dispatcher.BeginInvoke(new Action(() => _ = RefreshStatusAsync()));
+        }
+
+        private void OnPlayitDownloadProgressChanged(object? sender, DownloadProgress progressValue)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (!_playitAgentService.IsDownloadingBinary) return;
+
+                DownloadProgressBar.Visibility = Visibility.Visible;
+                TxtDownloadProgress.Visibility = Visibility.Visible;
+
+                if (progressValue.TotalBytes > 0)
+                {
+                    DownloadProgressBar.IsIndeterminate = false;
+                    DownloadProgressBar.Value = progressValue.Percentage;
+                    TxtDownloadProgress.Text =
+                        $"{Math.Round(progressValue.Percentage)}% \u2022 {FormatBytes(progressValue.BytesRead)} / {FormatBytes(progressValue.TotalBytes)}";
+                }
+                else
+                {
+                    DownloadProgressBar.IsIndeterminate = true;
+                    TxtDownloadProgress.Text = $"Downloaded {FormatBytes(progressValue.BytesRead)}...";
+                }
+            });
         }
 
         private void OnPlayitAgentStateChanged(object? sender, PlayitAgentState state)
@@ -116,13 +139,15 @@ namespace PocketMC.Desktop.Views
             bool partialExists = File.Exists(executablePath + ".partial");
 
             TxtExecutablePath.Text = executablePath;
-            if (!_isDownloading)
+            bool isDownloading = _playitAgentService.IsDownloadingBinary;
+
+            if (!isDownloading)
             {
                 DownloadProgressBar.Visibility = Visibility.Collapsed;
                 DownloadProgressBar.IsIndeterminate = false;
             }
 
-            if (_isDownloading)
+            if (isDownloading)
             {
                 SetUiState(TunnelUiState.Downloading, "Downloading", "PocketMC is downloading the Playit.gg agent.", Brushes.DeepSkyBlue);
                 ShowNoTunnels("The tunnel list will appear after the agent is downloaded and connected.");
@@ -266,112 +291,37 @@ namespace PocketMC.Desktop.Views
         private void UpdateActionButtons(bool binaryExists)
         {
             bool partialExists = _applicationState.IsConfigured && File.Exists(_applicationState.GetPlayitExecutablePath() + ".partial");
+            bool isDownloading = _playitAgentService.IsDownloadingBinary;
 
             BtnDownloadAgent.Visibility = binaryExists ? Visibility.Collapsed : Visibility.Visible;
-            BtnDownloadAgent.IsEnabled = !_isDownloading;
+            BtnDownloadAgent.IsEnabled = !isDownloading;
             BtnDownloadAgent.Content = partialExists ? "Resume Download" : "Download Agent";
 
             BtnConnect.Content = _currentUiState == TunnelUiState.WaitingForClaim ? "Reconnect" : "Connect";
             BtnConnect.IsEnabled =
-                !_isDownloading &&
+                !isDownloading &&
                 binaryExists &&
                 _currentUiState is TunnelUiState.Ready or TunnelUiState.WaitingForClaim;
 
-            BtnRefresh.IsEnabled = !_isDownloading;
+            BtnRefresh.IsEnabled = !isDownloading;
         }
 
-        private void CancelDownload()
+        private void BtnDownloadAgent_Click(object sender, RoutedEventArgs e)
         {
-            if (_downloadCancellation == null)
+            if (!_applicationState.IsConfigured || _playitAgentService.IsDownloadingBinary)
             {
                 return;
             }
 
-            if (!_downloadCancellation.IsCancellationRequested)
-            {
-                _downloadCancellation.Cancel();
-            }
-
-            _downloadCancellation.Dispose();
-            _downloadCancellation = null;
-        }
-
-        private async void BtnDownloadAgent_Click(object sender, RoutedEventArgs e)
-        {
-            if (!_applicationState.IsConfigured || _isDownloading)
-            {
-                return;
-            }
-
-            CancelDownload();
-            _downloadCancellation = new CancellationTokenSource();
-            CancellationToken cancellationToken = _downloadCancellation.Token;
-            _isDownloading = true;
-            DownloadProgressBar.Visibility = Visibility.Visible;
             TxtDownloadProgress.Visibility = Visibility.Visible;
-            DownloadProgressBar.IsIndeterminate = true;
-            DownloadProgressBar.Value = 0;
             TxtDownloadProgress.Text = "Starting download...";
-            SetUiState(TunnelUiState.Downloading, "Downloading", "PocketMC is downloading the Playit.gg agent.", Brushes.DeepSkyBlue);
-            UpdateActionButtons(binaryExists: false);
 
-            try
-            {
-                var progress = new Progress<DownloadProgress>(progressValue =>
-                {
-                    Dispatcher.Invoke(() =>
-                    {
-                        if (progressValue.TotalBytes > 0)
-                        {
-                            DownloadProgressBar.IsIndeterminate = false;
-                            DownloadProgressBar.Value = progressValue.Percentage;
-                            TxtDownloadProgress.Text =
-                                $"{Math.Round(progressValue.Percentage)}% • {FormatBytes(progressValue.BytesRead)} / {FormatBytes(progressValue.TotalBytes)}";
-                        }
-                        else
-                        {
-                            DownloadProgressBar.IsIndeterminate = true;
-                            TxtDownloadProgress.Text = $"Downloaded {FormatBytes(progressValue.BytesRead)}...";
-                        }
-                    });
-                });
-
-                await _downloaderService.EnsurePlayitDownloadedAsync(
-                    _applicationState.GetRequiredAppRootPath(),
-                    progress,
-                    cancellationToken);
-
-                TxtDownloadProgress.Text = "Agent downloaded successfully. Click Connect to start Playit.";
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogInformation("Playit agent download was canceled.");
-                TxtDownloadProgress.Text = "Download canceled. You can resume it later.";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to download the Playit agent.");
-                TxtDownloadProgress.Text = $"Download failed: {ex.Message}";
-                SetUiState(TunnelUiState.Missing, "Missing", "PocketMC could not finish downloading the Playit agent. Retry when ready.", Brushes.Orange);
-            }
-            finally
-            {
-                _isDownloading = false;
-                CancelDownload();
-                DownloadProgressBar.Visibility = Visibility.Collapsed;
-
-                if (File.Exists(_applicationState.GetPlayitExecutablePath()))
-                {
-                    TxtDownloadProgress.Visibility = Visibility.Visible;
-                }
-
-                await RefreshStatusAsync();
-            }
+            _ = _playitAgentService.DownloadAgentAsync();
         }
 
         private async void BtnConnect_Click(object sender, RoutedEventArgs e)
         {
-            if (!_applicationState.IsConfigured || !File.Exists(_applicationState.GetPlayitExecutablePath()) || _isDownloading)
+            if (!_applicationState.IsConfigured || !File.Exists(_applicationState.GetPlayitExecutablePath()) || _playitAgentService.IsDownloadingBinary)
             {
                 await RefreshStatusAsync();
                 return;
