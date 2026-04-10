@@ -187,6 +187,7 @@ namespace PocketMC.Desktop.ViewModels
             OnPropertyChanged(nameof(StoppedControlsVisibility));
             OnPropertyChanged(nameof(StopButtonText));
             OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(StatusColor));
         }
 
                 public void UpdateFromMetadata(InstanceMetadata newMetadata)

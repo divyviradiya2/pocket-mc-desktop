@@ -22,12 +22,12 @@ namespace PocketMC.Desktop.Views
 
         private void DashboardPage_Loaded(object sender, RoutedEventArgs e)
         {
-            ViewModel.LoadInstances();
+            ViewModel.Activate();
         }
 
         private void DashboardPage_Unloaded(object sender, RoutedEventArgs e)
         {
-            // Unsubscribe from events if needed
+            ViewModel.Deactivate();
         }
 
         // Keep UI-specific visual handlers (like drag-drop visual effects, hover animations, scrollbar adjustments) here

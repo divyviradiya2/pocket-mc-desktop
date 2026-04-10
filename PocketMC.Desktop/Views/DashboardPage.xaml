@@ -23,7 +23,7 @@
         
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel HorizontalAlignment="Left">
-                <ItemsControl x:Name="InstanceGrid">
+                <ItemsControl x:Name="InstanceGrid" ItemsSource="{Binding Instances}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel Orientation="Horizontal" />
@@ -166,7 +166,18 @@
                 </ItemsControl.ItemTemplate>
                 </ItemsControl>
                 <TextBlock x:Name="TxtEmpty" Text="No servers yet. Click 'New Instance' to get started." 
-                           Foreground="Silver" HorizontalAlignment="Left" Margin="40" FontSize="14" Visibility="Collapsed"/>
+                           Foreground="Silver" HorizontalAlignment="Left" Margin="40" FontSize="14">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Instances.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
             </StackPanel>
         </ScrollViewer>
     </Grid>

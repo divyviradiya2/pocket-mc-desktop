@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -29,6 +30,8 @@ namespace PocketMC.Desktop.ViewModels
         private readonly IAppDispatcher _dispatcher;
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<DashboardViewModel> _logger;
+        private readonly Dictionary<Guid, InstanceCardViewModel> _instanceLookup = new();
+        private bool _isActive;
 
         public ObservableCollection<InstanceCardViewModel> Instances { get; } = new();
 
@@ -80,7 +83,73 @@ namespace PocketMC.Desktop.ViewModels
             OpenConsoleCommand = new RelayCommand(OpenConsole);
         }
 
-                private void NavigateToNewInstance()
+        public void Activate()
+        {
+            if (_isActive)
+            {
+                LoadInstances();
+                return;
+            }
+
+            _instanceManager.InstancesChanged += OnInstancesChanged;
+            _serverProcessManager.OnInstanceStateChanged += OnInstanceStateChanged;
+            _serverProcessManager.OnRestartCountdownTick += OnRestartCountdownTick;
+            _resourceMonitorService.OnGlobalMetricsUpdated += OnGlobalMetricsUpdated;
+            _isActive = true;
+            LoadInstances();
+        }
+
+        public void Deactivate()
+        {
+            if (!_isActive)
+            {
+                return;
+            }
+
+            _instanceManager.InstancesChanged -= OnInstancesChanged;
+            _serverProcessManager.OnInstanceStateChanged -= OnInstanceStateChanged;
+            _serverProcessManager.OnRestartCountdownTick -= OnRestartCountdownTick;
+            _resourceMonitorService.OnGlobalMetricsUpdated -= OnGlobalMetricsUpdated;
+            _isActive = false;
+        }
+
+        private void OnInstancesChanged(object? sender, EventArgs e)
+        {
+            _dispatcher.Invoke(LoadInstances);
+        }
+
+        private void OnInstanceStateChanged(Guid instanceId, ServerState state)
+        {
+            _dispatcher.Invoke(() =>
+            {
+                if (!_instanceLookup.TryGetValue(instanceId, out var vm))
+                {
+                    return;
+                }
+
+                vm.UpdateState(state);
+                ApplyLiveMetrics(vm);
+            });
+        }
+
+        private void OnRestartCountdownTick(Guid instanceId, int secondsRemaining)
+        {
+            _dispatcher.Invoke(() =>
+            {
+                if (_instanceLookup.TryGetValue(instanceId, out var vm))
+                {
+                    vm.UpdateCountdown(secondsRemaining);
+                    ApplyLiveMetrics(vm);
+                }
+            });
+        }
+
+        private void OnGlobalMetricsUpdated()
+        {
+            _dispatcher.Invoke(UpdateAllLiveMetrics);
+        }
+
+        private void NavigateToNewInstance()
         {
             var newInstancePage = ActivatorUtilities.CreateInstance<NewInstancePage>(_serviceProvider);
             _navigationService.NavigateToDetailPage(newInstancePage, "New Instance");
@@ -92,6 +161,7 @@ namespace PocketMC.Desktop.ViewModels
 
             var existingVms = Instances.ToList();
             Instances.Clear();
+            _instanceLookup.Clear();
             var metas = _instanceManager.GetAllInstances();
             foreach (var meta in metas)
             {
@@ -110,14 +180,41 @@ namespace PocketMC.Desktop.ViewModels
 
             foreach (var vm in Instances)
             {
+                _instanceLookup[vm.Id] = vm;
                 var process = _serverProcessManager.GetProcess(vm.Id);
                 if (process != null)
                 {
-                    vm.State = process.State;
+                    vm.UpdateState(process.State);
                 }
 
+                ApplyLiveMetrics(vm);
                 _ = RefreshTunnelAddressAsync(vm);
             }
+        }
+
+        private void UpdateAllLiveMetrics()
+        {
+            foreach (var vm in Instances)
+            {
+                ApplyLiveMetrics(vm);
+            }
+        }
+
+        private void ApplyLiveMetrics(InstanceCardViewModel vm)
+        {
+            if (_resourceMonitorService.Metrics.TryGetValue(vm.Id, out var metrics))
+            {
+                vm.CpuText = $"CPU {Math.Round(metrics.CpuUsage):0}%";
+                vm.RamText = $"RAM {Math.Round(metrics.RamUsageMb):0} MB";
+                vm.PlayerStatus = metrics.PlayerCount == 1
+                    ? "1 Player Online"
+                    : $"{metrics.PlayerCount} Players Online";
+                return;
+            }
+
+            vm.CpuText = "CPU 0%";
+            vm.RamText = "RAM 0 MB";
+            vm.PlayerStatus = "0 Players Online";
         }
 
         private async Task RefreshTunnelAddressAsync(InstanceCardViewModel vm)
@@ -146,24 +243,31 @@ namespace PocketMC.Desktop.ViewModels
         {
             if (parameter is InstanceCardViewModel vm)
             {
-                string? instancePath = _instanceManager.GetInstancePath(vm.Id);
-                if (instancePath == null) return;
-
-                var process = await _serverProcessManager.StartProcessAsync(vm.Metadata, _applicationState.GetRequiredAppRootPath());
-                if (process == null) return;
-
-                vm.State = process.State;
-
-                // Automatically start playit
-                if (_applicationState.IsConfigured && File.Exists(_applicationState.GetPlayitExecutablePath()))
+                try
                 {
-                    if (_playitAgentService.State == PlayitAgentState.Stopped || _playitAgentService.State == PlayitAgentState.Starting)
+                    string? instancePath = _instanceManager.GetInstancePath(vm.Id);
+                    if (instancePath == null) return;
+
+                    var process = await _serverProcessManager.StartProcessAsync(vm.Metadata, _applicationState.GetRequiredAppRootPath());
+                    vm.UpdateState(process.State);
+                    ApplyLiveMetrics(vm);
+
+                    // Automatically start playit
+                    if (_applicationState.IsConfigured && File.Exists(_applicationState.GetPlayitExecutablePath()))
                     {
-                        _playitAgentService.Start();
+                        if (_playitAgentService.State == PlayitAgentState.Stopped || _playitAgentService.State == PlayitAgentState.Starting)
+                        {
+                            _playitAgentService.Start();
+                        }
                     }
                 }
-
-
+                catch (Exception ex)
+                {
+                    vm.UpdateState(ServerState.Stopped);
+                    ApplyLiveMetrics(vm);
+                    _logger.LogError(ex, "Failed to start server {ServerName}.", vm.Name);
+                    _dialogService.ShowMessage("Start Failed", $"PocketMC could not start '{vm.Name}'.\n\n{ex.Message}", DialogType.Error);
+                }
             }
         }
 
@@ -173,8 +277,32 @@ namespace PocketMC.Desktop.ViewModels
         {
             if (parameter is InstanceCardViewModel vm)
             {
-                var process = _serverProcessManager.GetProcess(vm.Id);
-                if (process != null) await process.WriteInputAsync("stop");
+                try
+                {
+                    if (_serverProcessManager.IsWaitingToRestart(vm.Id))
+                    {
+                        _serverProcessManager.AbortRestartDelay(vm.Id);
+                        vm.UpdateState(ServerState.Crashed);
+                        ApplyLiveMetrics(vm);
+                        return;
+                    }
+
+                    if (_serverProcessManager.GetProcess(vm.Id) == null)
+                    {
+                        return;
+                    }
+
+                    vm.UpdateState(ServerState.Stopping);
+                    await _serverProcessManager.StopProcessAsync(vm.Id);
+                }
+                catch (Exception ex)
+                {
+                    var currentState = _serverProcessManager.GetProcess(vm.Id)?.State ?? ServerState.Stopped;
+                    vm.UpdateState(currentState);
+                    ApplyLiveMetrics(vm);
+                    _logger.LogError(ex, "Failed to stop server {ServerName}.", vm.Name);
+                    _dialogService.ShowMessage("Stop Failed", $"PocketMC could not stop '{vm.Name}' cleanly.\n\n{ex.Message}", DialogType.Error);
+                }
             }
         }
 

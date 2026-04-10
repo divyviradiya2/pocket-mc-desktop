@@ -20,6 +20,8 @@ namespace PocketMC.Desktop.Services
         private readonly object _cacheLock = new();
         private volatile bool _cacheInitialized;
 
+        public event EventHandler? InstancesChanged;
+
         public InstanceManager(ApplicationState applicationState, ILogger<InstanceManager> logger)
         {
             _applicationState = applicationState;
@@ -113,6 +115,7 @@ namespace PocketMC.Desktop.Services
             _pathCache[metadata.Id] = newInstancePath;
             _metadataCache[metadata.Id] = metadata;
             _cacheInitialized = true;
+            OnInstancesChanged();
 
             return metadata;
         }
@@ -164,6 +167,7 @@ namespace PocketMC.Desktop.Services
                 File.WriteAllText(metadataFile, JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true }));
                 _pathCache[metadata.Id] = currentFolderPath;
                 _metadataCache[metadata.Id] = metadata;
+                OnInstancesChanged();
             }
         }
 
@@ -195,6 +199,7 @@ namespace PocketMC.Desktop.Services
             {
                 _pathCache.TryRemove(instanceId.Value, out _);
                 _metadataCache.TryRemove(instanceId.Value, out _);
+                OnInstancesChanged();
             }
         }
 
@@ -230,6 +235,19 @@ namespace PocketMC.Desktop.Services
             _pathCache[metadata.Id] = instancePath;
             _metadataCache[metadata.Id] = metadata;
             _cacheInitialized = true;
+            OnInstancesChanged();
+        }
+
+        private void OnInstancesChanged()
+        {
+            try
+            {
+                InstancesChanged?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "A subscriber threw while handling the instance catalog change event.");
+            }
         }
 
         private void EnsureCacheLoaded()
