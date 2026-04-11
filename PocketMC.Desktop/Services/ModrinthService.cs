@@ -59,10 +59,9 @@ namespace PocketMC.Desktop.Services
     {
         private readonly HttpClient _httpClient;
 
-        public ModrinthService()
+        public ModrinthService(HttpClient httpClient)
         {
-            _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop");
+            _httpClient = httpClient;
         }
 
         public async Task<List<ModrinthHit>> SearchAsync(string type, string mcVersion, string sort = "relevance", string query = "", int offset = 0)

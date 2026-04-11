@@ -1,6 +1,9 @@
 [Setup]
 AppName=PocketMC
-AppVersion=1.0.0
+#ifndef AppVersion
+  #define AppVersion "0.0.0-dev"
+#endif
+AppVersion={#AppVersion}
 DefaultDirName={autopf}\PocketMC Desktop
 DefaultGroupName=PocketMC
 OutputDir=ReleaseOutput

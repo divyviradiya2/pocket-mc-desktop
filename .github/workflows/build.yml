@@ -51,10 +51,18 @@ jobs:
     - name: Publish App (Multi-File for Better Performance)
       run: dotnet publish PocketMC.Desktop\PocketMC.Desktop.csproj -c Release -r win-x64 -p:PublishSingleFile=false -p:PublishReadyToRun=true --self-contained false -o publish_output
       
+    - name: Extract version
+      id: version
+      shell: pwsh
+      run: |
+        $version = ([xml](Get-Content PocketMC.Desktop/PocketMC.Desktop.csproj)).Project.PropertyGroup.Version
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+
     - name: Create Installer using Inno Setup
       uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
       with:
         path: installer.iss
+        arguments: /DAppVersion=${{ steps.version.outputs.VERSION }}
 
     - name: Upload Installer Setup Artifact
       uses: actions/upload-artifact@v4

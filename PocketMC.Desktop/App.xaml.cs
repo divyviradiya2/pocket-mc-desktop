@@ -8,6 +8,8 @@ using PocketMC.Desktop.Views;
 using PocketMC.Desktop.Core.Interfaces;
 using PocketMC.Desktop.Infrastructure;
 
+using System.Net.Http;
+using System.Net;
 using System.IO;
 
 namespace PocketMC.Desktop;
@@ -59,7 +61,27 @@ public partial class App : Application
                 services.AddHttpClient<FabricProvider>(client => client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop"));
                 services.AddHttpClient<ForgeProvider>(client => client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop"));
                 services.AddSingleton<ModpackService>();
-                services.AddSingleton<CurseForgeService>();
+                services.AddHttpClient<ModrinthService>(client =>
+                {
+                    client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop");
+                });
+                services.AddHttpClient<CurseForgeService>(client =>
+                {
+                    client.DefaultRequestHeaders.Add(
+                        "User-Agent",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                    client.DefaultRequestHeaders.Add(
+                        "Accept", "application/json, text/plain, */*");
+                    client.DefaultRequestHeaders.Add(
+                        "Accept-Language", "en-US,en;q=0.5");
+                })
+                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+                {
+                    AutomaticDecompression =
+                        System.Net.DecompressionMethods.GZip |
+                        System.Net.DecompressionMethods.Deflate
+                });
                 services.AddHttpClient<PaperProvider>(client =>
                 {
                     client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop");
@@ -75,6 +97,7 @@ public partial class App : Application
                 services.AddTransient<PocketMC.Desktop.ViewModels.ServerSettingsViewModel>();
                 services.AddTransient<DashboardPage>();
                 services.AddTransient<NewInstancePage>();
+                services.AddTransient<PluginBrowserPage>();
             })
             .Build();
 

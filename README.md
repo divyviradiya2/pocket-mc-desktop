@@ -3,7 +3,6 @@
 <!-- Replace with your actual logo -->
 <img src="docs/assets/logo.png" alt="PocketMC Logo" width="200" />
 
-
 **A professional Minecraft Java Edition server manager for Windows.**  
 Run, monitor, and share servers from your own machine, no sysadmin skills required.
 
@@ -33,18 +32,21 @@ It is not a hosting panel. It runs on your PC. Your server, your hardware, your 
 ## Features
 
 ### Instance Management
+
 - Create multiple server instances side-by-side, each isolated in its own folder
-- Supports **Vanilla** (Mojang) and **Paper** (high-performance) server types
-- One-click JAR download directly from Mojang's launcher manifest or PaperMC's API
+- Supports **Vanilla** (Mojang), **Paper** (high-performance), **Fabric**, and **Forge** (beta) server types
+- One-click JAR download directly from Mojang's launcher manifest, PaperMC's API, or Modrinth
 - Automatic `eula.txt` generation on instance creation
 - Per-instance metadata stored in `.pocket-mc.json`, human-readable and portable
 
 ### Automatic Java Runtime Provisioning
+
 - Downloads and manages **headless JREs** (Java 11, 17, 21, 25) via the [Adoptium API](https://api.adoptium.net/)
 - Isolated from your system's Java install, no version conflicts
 - Custom Java executable path override per instance for advanced use cases
 
 ### Public Server Tunneling via Playit.gg
+
 - Embedded [Playit.gg](https://playit.gg) agent runs as an app-scoped background process
 - First-time claim flow guided through an in-app wizard that opens automatically
 - Tunnel address resolved fresh on every server start, never stale-cached
@@ -53,6 +55,7 @@ It is not a hosting panel. It runs on your PC. Your server, your hardware, your 
 - Agent assigned to a Windows Job Object, guaranteed cleanup if PocketMC crashes
 
 ### Server Lifecycle & Process Control
+
 - Start, stop, and restart servers from the dashboard or the dedicated console view
 - **Windows Job Object** ensures all Java child processes die with PocketMC, no orphan processes
 - Graceful `/stop` command with configurable timeout, hard-kill fallback
@@ -61,6 +64,7 @@ It is not a hosting panel. It runs on your PC. Your server, your hardware, your 
 - Per-instance session log written to `logs/pocketmc-session.log` with shared-access read
 
 ### Resource Monitoring
+
 - Live CPU and RAM metrics per instance via Windows `Process` APIs
 - Sparkline history charts per card (powered by LiveCharts 2)
 - Global RAM header bar with 90% usage warning
@@ -68,6 +72,7 @@ It is not a hosting panel. It runs on your PC. Your server, your hardware, your 
 - Adaptive polling interval, fewer resources consumed when more servers are running
 
 ### Server Configuration
+
 - Full `server.properties` editor with categorized UI sections: World, Memory, Players, Network, Gameplay
 - Advanced properties data grid for any key not covered by the UI
 - Server icon upload with 64×64 dimension validation
@@ -76,18 +81,21 @@ It is not a hosting panel. It runs on your PC. Your server, your hardware, your 
 - Per-instance advanced JVM arguments (tokenized correctly, no shell injection)
 
 ### World Management
+
 - Upload any world as a **ZIP file**, intelligently hunts for `level.dat` regardless of ZIP structure
 - Delete the current world with a single confirmation
 - Running-server lock on all world operations
 
 ### Plugin & Mod Management
-- Browse and install plugins/mods directly from [Modrinth](https://modrinth.com) in-app
+
+- Browse and install plugins/mods directly from [Modrinth](https://modrinth.com) and [CurseForge](https://curseforge.com) in-app
 - Local `.jar` file import with drag-and-drop support
 - Plugin `api-version` parsing from `plugin.yml` inside the JAR, **backward-compatibility-aware** mismatch warnings
 - Vanilla plugin tab warns that Paper is required, no silent failure
 - Running-server lock on all plugin/mod operations
 
 ### Backup System
+
 - Manual and scheduled automatic backups (6h / 12h / 24h intervals)
 - Live-server-safe: sends `save-off` → `save-all` → waits for `Saved the game` confirmation before compressing
 - Locked-file tolerant: skips `session.lock` and any exclusively held files without failing the whole backup
@@ -173,7 +181,7 @@ On first run, PocketMC downloads the required Java runtimes automatically. This 
 ### 2. Create a Server Instance
 
 1. Click **New Instance** on the Dashboard.
-2. Enter a name, description, and select server type (Vanilla or Paper).
+2. Enter a name, description, and select server type (Vanilla, Paper, Fabric, or Forge).
 3. Choose a Minecraft version from the live version list.
 4. Accept the [Minecraft EULA](https://aka.ms/MinecraftEULA).
 5. Click **Create & Download**, the server JAR downloads automatically.
@@ -268,7 +276,8 @@ For significant architectural changes, open an issue first to discuss the approa
 - [ ] In-app whitelist and op management
 - [ ] System tray minimization with running-server indicator
 - [ ] Multi-monitor window persistence
-- [ ] Fabric / Forge server type providers
+- [ ] Forge — full 1.17+ bootstrapper stability pass
+- [ ] Modpack import progress UI (streaming install feedback)
 - [ ] Player activity charts and historical metrics
 
 ---

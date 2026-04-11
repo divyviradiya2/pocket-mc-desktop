@@ -13,19 +13,10 @@ namespace PocketMC.Desktop.Services
         private readonly ApplicationState _appState;
         private const string ApiBase = "https://api.curseforge.com/v1";
 
-        public CurseForgeService(ApplicationState appState)
+        public CurseForgeService(ApplicationState appState, HttpClient httpClient)
         {
             _appState = appState;
-            var handler = new HttpClientHandler
-            {
-                AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
-            };
-            
-            _httpClient = new HttpClient(handler);
-            
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            _httpClient.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
-            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.5");
+            _httpClient = httpClient;
         }
 
         private string? GetActiveApiKey()

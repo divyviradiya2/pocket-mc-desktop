@@ -18,8 +18,9 @@ namespace PocketMC.Desktop.Views
     public partial class PluginBrowserPage : Page
     {
         private readonly IAppNavigationService _navigationService;
-        private readonly ModrinthService _modrinth = new();
+        private readonly ModrinthService _modrinth;
         private readonly CurseForgeService _curseForge;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly string? _serverDir;
         private readonly string _mcVersion;
         private readonly string _projectType;
@@ -33,7 +34,9 @@ namespace PocketMC.Desktop.Views
 
         public PluginBrowserPage(
             IAppNavigationService navigationService,
+            ModrinthService modrinth,
             CurseForgeService curseForge,
+            IHttpClientFactory httpClientFactory,
             string? serverDir,
             string mcVersion,
             string projectType,
@@ -41,7 +44,9 @@ namespace PocketMC.Desktop.Views
         {
             InitializeComponent();
             _navigationService = navigationService;
+            _modrinth = modrinth;
             _curseForge = curseForge;
+            _httpClientFactory = httpClientFactory;
             _serverDir = serverDir;
             _mcVersion = mcVersion;
             _projectType = projectType;
@@ -177,27 +182,37 @@ namespace PocketMC.Desktop.Views
 
                 var file = version.Files.FirstOrDefault(f => f.IsPrimary) ?? version.Files[0];
                 
-                using var httpClient = new HttpClient();
-                var data = await httpClient.GetByteArrayAsync(file.Url);
+                using var httpClient = _httpClientFactory.CreateClient("PocketMC.Downloads");
+                
+                using var response = await httpClient.GetAsync(file.Url, HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
+
+                string destFile;
+                if (_isModpackMode)
+                {
+                    destFile = Path.Combine(Path.GetTempPath(), file.FileName);
+                }
+                else
+                {
+                    if (_serverDir == null) return;
+                    string targetSubDir = _projectType.Contains("plugin") ? "plugins" : "mods";
+                    string destDir = Path.Combine(_serverDir, targetSubDir);
+                    if (!Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
+                    destFile = Path.Combine(destDir, file.FileName);
+                }
+
+                await using (var contentStream = await response.Content.ReadAsStreamAsync())
+                await using (var fileStream = new FileStream(destFile, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true))
+                {
+                    await contentStream.CopyToAsync(fileStream);
+                }
 
                 if (_isModpackMode)
                 {
-                    string tempFile = Path.Combine(Path.GetTempPath(), file.FileName);
-                    await File.WriteAllBytesAsync(tempFile, data);
-
-                    OnModpackDownloaded?.Invoke(tempFile);
+                    OnModpackDownloaded?.Invoke(destFile);
                     _navigationService.NavigateBack();
                     return;
                 }
-
-                if (_serverDir == null) return;
-                
-                string targetSubDir = _projectType.Contains("plugin") ? "plugins" : "mods";
-                string destDir = Path.Combine(_serverDir, targetSubDir);
-                if (!Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
-                string destFile = Path.Combine(destDir, file.FileName);
-
-                await File.WriteAllBytesAsync(destFile, data);
 
                 btn.Content = "Installed";
                 _onCompleted?.Invoke();

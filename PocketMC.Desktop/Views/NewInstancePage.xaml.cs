@@ -77,7 +77,18 @@ namespace PocketMC.Desktop.Views
                 return;
             }
 
-            await LoadVersionsAsync(GetSelectedServerType());
+            string serverType = GetSelectedServerType();
+            if (serverType == "Forge")
+            {
+                TxtForgeWarning.Text = "⚠ Forge support is in beta. First launch runs the installer automatically. This may take several minutes.";
+                TxtForgeWarning.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                TxtForgeWarning.Visibility = Visibility.Collapsed;
+            }
+
+            await LoadVersionsAsync(serverType);
         }
 
         private async void ChkShowSnapshots_Changed(object sender, RoutedEventArgs e)

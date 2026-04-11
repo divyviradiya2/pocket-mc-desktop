@@ -361,12 +361,12 @@ namespace PocketMC.Desktop.Views
             }
         }
 
-        private static LogLevel _lastLevel = LogLevel.Info;
+        private LogLevel _lastLevel = LogLevel.Info;
 
         /// <summary>
         /// Applies regex colorization and severity level based on log tags.
         /// </summary>
-        private static LogLine ColorizeLogLine(string text)
+        private LogLine ColorizeLogLine(string text)
         {
             Brush color;
             LogLevel level;
