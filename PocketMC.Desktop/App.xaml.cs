@@ -54,6 +54,7 @@ public partial class App : Application
                 services.AddSingleton<ResourceMonitorService>();
                 services.AddSingleton<BackupService>();
                 services.AddSingleton<BackupSchedulerService>();
+                services.AddSingleton<ShellStartupCoordinator>();
                 services.AddSingleton<PlayitApiClient>();
                 services.AddSingleton<PlayitAgentService>();
                 services.AddSingleton<InstanceManager>();

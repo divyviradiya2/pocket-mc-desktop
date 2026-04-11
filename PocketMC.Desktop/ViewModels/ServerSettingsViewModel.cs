@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Specialized;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -127,6 +128,39 @@ namespace PocketMC.Desktop.ViewModels
 
         public ObservableCollection<PropertyItem> AdvancedProperties { get; } = new();
 
+        private string _rawServerProperties = "";
+        private bool _isLoadingRawServerProperties;
+        private bool _isRawServerPropertiesDirty;
+        public string RawServerProperties
+        {
+            get => _rawServerProperties;
+            set
+            {
+                if (SetProperty(ref _rawServerProperties, value))
+                {
+                    if (!_isLoadingRawServerProperties)
+                    {
+                        _isRawServerPropertiesDirty = true;
+                    }
+
+                    MarkChanged();
+                }
+            }
+        }
+
+        private PropertyItem? _selectedAdvancedProperty;
+        public PropertyItem? SelectedAdvancedProperty
+        {
+            get => _selectedAdvancedProperty;
+            set
+            {
+                if (SetProperty(ref _selectedAdvancedProperty, value))
+                {
+                    CommandManager.InvalidateRequerySuggested();
+                }
+            }
+        }
+
         // Crash
         private bool _enableAutoRestart = false;
         public bool EnableAutoRestart { get => _enableAutoRestart; set { if (SetProperty(ref _enableAutoRestart, value)) MarkChanged(); } }
@@ -181,6 +215,8 @@ namespace PocketMC.Desktop.ViewModels
         public ICommand AddPluginCommand { get; }
         public ICommand DeletePluginCommand { get; }
         public ICommand BrowseModrinthPluginsCommand { get; }
+        public ICommand AddAdvancedPropertyCommand { get; }
+        public ICommand DeleteAdvancedPropertyCommand { get; }
 
         public ICommand AddModCommand { get; }
         public ICommand DeleteModCommand { get; }
@@ -240,6 +276,8 @@ namespace PocketMC.Desktop.ViewModels
             AddPluginCommand = new RelayCommand(async _ => await AddPluginAsync(), _ => !IsRunning && !ShowVanillaWarning);
             DeletePluginCommand = new RelayCommand(async p => await DeletePluginAsync(p as string), _ => !IsRunning);
             BrowseModrinthPluginsCommand = new RelayCommand(_ => BrowseModrinth("project_type:plugin"));
+            AddAdvancedPropertyCommand = new RelayCommand(_ => AddAdvancedProperty());
+            DeleteAdvancedPropertyCommand = new RelayCommand(_ => DeleteSelectedAdvancedProperty(), _ => SelectedAdvancedProperty != null);
 
             AddModCommand = new RelayCommand(async _ => await AddModAsync(), _ => !IsRunning);
             DeleteModCommand = new RelayCommand(async p => await DeleteModAsync(p as string), _ => !IsRunning);
@@ -287,15 +325,15 @@ namespace PocketMC.Desktop.ViewModels
             AllowBlock = configuration.AllowCommandBlock;
             AllowFlight = configuration.AllowFlight;
             AllowNether = configuration.AllowNether;
+            LoadRawServerProperties();
 
             AdvancedProperties.Clear();
-            foreach (var kvp in configuration.AdvancedProperties)
+            foreach (var kvp in configuration.AllProperties)
             {
-                var item = new PropertyItem { Key = kvp.Key, Value = kvp.Value };
-                item.PropertyChanged += (s, e) => MarkChanged();
-                AdvancedProperties.Add(item);
+                AdvancedProperties.Add(CreateAdvancedProperty(kvp.Key, kvp.Value));
             }
-            AdvancedProperties.CollectionChanged += (s, e) => MarkChanged();
+            AdvancedProperties.CollectionChanged -= OnAdvancedPropertiesChanged;
+            AdvancedProperties.CollectionChanged += OnAdvancedPropertiesChanged;
 
             LoadIcon();
             LoadWorldTab();
@@ -453,16 +491,64 @@ namespace PocketMC.Desktop.ViewModels
 
             foreach (var item in AdvancedProperties)
             {
-                if (!string.IsNullOrWhiteSpace(item.Key))
+                if (!string.IsNullOrWhiteSpace(item.Key) &&
+                    (!ServerConfigurationService.IsCoreProperty(item.Key) || item.IsDirty))
                 {
                     configuration.AdvancedProperties[item.Key] = item.Value;
                 }
             }
 
             _serverConfigurationService.Save(Metadata, ServerDir, configuration);
+            if (_isRawServerPropertiesDirty)
+            {
+                _serverConfigurationService.SaveRawProperties(ServerDir, RawServerProperties);
+                _isRawServerPropertiesDirty = false;
+            }
+
             HasUnsavedChanges = false;
 
             _dialogService.ShowMessage("Saved", "Configurations saved successfully.");
+        }
+
+        private void LoadRawServerProperties()
+        {
+            _isLoadingRawServerProperties = true;
+            RawServerProperties = _serverConfigurationService.LoadRawProperties(ServerDir);
+            _isRawServerPropertiesDirty = false;
+            _isLoadingRawServerProperties = false;
+        }
+
+        private void AddAdvancedProperty()
+        {
+            var property = new PropertyItem();
+            AdvancedProperties.Add(property);
+            SelectedAdvancedProperty = property;
+            MarkChanged();
+        }
+
+        private void DeleteSelectedAdvancedProperty()
+        {
+            if (SelectedAdvancedProperty == null)
+            {
+                return;
+            }
+
+            AdvancedProperties.Remove(SelectedAdvancedProperty);
+            SelectedAdvancedProperty = null;
+            MarkChanged();
+            CommandManager.InvalidateRequerySuggested();
+        }
+
+        private PropertyItem CreateAdvancedProperty(string key, string value)
+        {
+            var item = PropertyItem.CreateLoaded(key, value);
+            item.PropertyChanged += (s, e) => MarkChanged();
+            return item;
+        }
+
+        private void OnAdvancedPropertiesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            MarkChanged();
         }
 
         private async Task CancelAsync()
@@ -738,8 +824,42 @@ namespace PocketMC.Desktop.ViewModels
     public class PropertyItem : ViewModelBase
     {
         private string _key = "";
-        public string Key { get => _key; set => SetProperty(ref _key, value); }
+        private bool _isLoading;
+        public bool IsDirty { get; private set; }
+
+        public string Key
+        {
+            get => _key;
+            set
+            {
+                if (SetProperty(ref _key, value) && !_isLoading)
+                {
+                    IsDirty = true;
+                }
+            }
+        }
+
         private string _value = "";
-        public string Value { get => _value; set => SetProperty(ref _value, value); }
+        public string Value
+        {
+            get => _value;
+            set
+            {
+                if (SetProperty(ref _value, value) && !_isLoading)
+                {
+                    IsDirty = true;
+                }
+            }
+        }
+
+        public static PropertyItem CreateLoaded(string key, string value)
+        {
+            var item = new PropertyItem { _isLoading = true };
+            item.Key = key;
+            item.Value = value;
+            item.IsDirty = false;
+            item._isLoading = false;
+            return item;
+        }
     }
 }

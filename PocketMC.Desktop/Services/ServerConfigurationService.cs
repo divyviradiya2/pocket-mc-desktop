@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using PocketMC.Desktop.Models;
+using PocketMC.Desktop.Utils;
 
 namespace PocketMC.Desktop.Services
 {
@@ -64,6 +66,11 @@ namespace PocketMC.Desktop.Services
                 AllowFlight = props.TryGetValue("allow-flight", out var allowFlight) && allowFlight == "true",
                 AllowNether = props.TryGetValue("allow-nether", out var allowNether) ? allowNether == "true" : true
             };
+
+            foreach (var property in props)
+            {
+                configuration.AllProperties[property.Key] = property.Value;
+            }
 
             foreach (var property in props.Where(property => !CorePropertyKeys.Contains(property.Key)))
             {
@@ -145,6 +152,21 @@ namespace PocketMC.Desktop.Services
             var props = ServerPropertiesParser.Read(propsFile);
             return props.TryGetValue(key, out value);
         }
+
+        public string LoadRawProperties(string serverDir)
+        {
+            string propsFile = GetPropertiesPath(serverDir);
+            return File.Exists(propsFile)
+                ? File.ReadAllText(propsFile, Encoding.UTF8)
+                : string.Empty;
+        }
+
+        public void SaveRawProperties(string serverDir, string contents)
+        {
+            FileUtils.AtomicWriteAllText(GetPropertiesPath(serverDir), contents, new UTF8Encoding(false));
+        }
+
+        public static bool IsCoreProperty(string key) => CorePropertyKeys.Contains(key);
 
         private static string GetPropertiesPath(string serverDir) =>
             Path.Combine(serverDir, ServerPropertiesFileName);

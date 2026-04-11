@@ -30,5 +30,6 @@ namespace PocketMC.Desktop.Models
         public bool AllowNether { get; set; } = true;
 
         public Dictionary<string, string> AdvancedProperties { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, string> AllProperties { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 }

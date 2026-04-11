@@ -27,6 +27,9 @@ public sealed class ServerConfigurationServiceTests : IDisposable
         Assert.Equal("Hello", configuration.Motd);
         Assert.Equal("12", configuration.MaxPlayers);
         Assert.Equal("9", configuration.AdvancedProperties["view-distance"]);
+        Assert.Equal("Hello", configuration.AllProperties["motd"]);
+        Assert.Equal("12", configuration.AllProperties["max-players"]);
+        Assert.Equal("9", configuration.AllProperties["view-distance"]);
         Assert.False(configuration.AdvancedProperties.ContainsKey("motd"));
     }
 
