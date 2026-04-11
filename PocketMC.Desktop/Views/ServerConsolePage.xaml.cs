@@ -11,6 +11,7 @@ using System.Windows.Threading;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Wpf.Ui.Controls;
+using PocketMC.Desktop.Core.Interfaces;
 using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Services;
 
@@ -42,6 +43,7 @@ namespace PocketMC.Desktop.Views
     /// </summary>
     public partial class ServerConsolePage : Page, INotifyPropertyChanged, ITitleBarContextSource
     {
+        private readonly IAppNavigationService _navigationService;
         private readonly InstanceMetadata _metadata;
         private readonly ServerProcess _serverProcess;
         private readonly ILogger<ServerConsolePage> _logger;
@@ -85,8 +87,13 @@ namespace PocketMC.Desktop.Views
         public bool CanStopServer => _serverProcess.State == ServerState.Online || _serverProcess.State == ServerState.Starting;
         public event Action? TitleBarContextChanged;
 
-        public ServerConsolePage(InstanceMetadata metadata, ServerProcess serverProcess, ILogger<ServerConsolePage> logger)
+        public ServerConsolePage(
+            IAppNavigationService navigationService,
+            InstanceMetadata metadata,
+            ServerProcess serverProcess,
+            ILogger<ServerConsolePage> logger)
         {
+            _navigationService = navigationService;
             _metadata = metadata;
             _serverProcess = serverProcess;
             _logger = logger;
@@ -577,14 +584,10 @@ namespace PocketMC.Desktop.Views
 
         private void BtnBack_Click(object sender, RoutedEventArgs e)
         {
-            var mainWindow = Window.GetWindow(this) as MainWindow;
-            if (mainWindow?.NavigateToDashboard() == true)
+            if (!_navigationService.NavigateBack())
             {
-                return;
+                _navigationService.NavigateToDashboard();
             }
-
-            if (NavigationService?.CanGoBack == true)
-                NavigationService.GoBack();
         }
 
         private async void BtnStop_Click(object sender, RoutedEventArgs e)

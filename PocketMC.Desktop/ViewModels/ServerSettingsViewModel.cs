@@ -34,7 +34,6 @@ namespace PocketMC.Desktop.ViewModels
 
         public InstanceMetadata Metadata { get; }
         public string ServerDir { get; }
-        public System.Windows.Controls.Page? HostPage { get; set; }
 
         private bool _isLoading;
         public bool IsLoading { get => _isLoading; set => SetProperty(ref _isLoading, value); }
@@ -485,7 +484,10 @@ namespace PocketMC.Desktop.ViewModels
                 var result = await _dialogService.ShowDialogAsync("Discard Changes", "You have unsaved changes. Discard them?", DialogType.Warning, false);
                 if (result != DialogResult.Yes) return;
             }
-            _navigationService.NavigateBack();
+            if (!_navigationService.NavigateBack())
+            {
+                _navigationService.NavigateToDashboard();
+            }
         }
 
         private void LoadWorldTab()
@@ -615,11 +617,16 @@ namespace PocketMC.Desktop.ViewModels
 
         private void BrowseModrinth(string projectType)
         {
-            var browserPage = new PluginBrowserPage(ServerDir, Metadata.MinecraftVersion, projectType, () =>
-            {
-                if (projectType.Contains("plugin")) LoadPlugins();
-                else LoadMods();
-            }, HostPage, "Server Settings");
+            var browserPage = ActivatorUtilities.CreateInstance<PluginBrowserPage>(
+                _serviceProvider,
+                ServerDir,
+                Metadata.MinecraftVersion,
+                projectType,
+                (Action)(() =>
+                {
+                    if (projectType.Contains("plugin")) LoadPlugins();
+                    else LoadMods();
+                }));
 
             if (projectType == "project_type:modpack")
             {
@@ -630,7 +637,11 @@ namespace PocketMC.Desktop.ViewModels
                 };
             }
 
-            _navigationService.NavigateToDetailPage(browserPage, "Marketplace");
+            _navigationService.NavigateToDetailPage(
+                browserPage,
+                "Marketplace",
+                DetailRouteKind.PluginBrowser,
+                DetailBackNavigation.PreviousDetail);
         }
 
         private async Task ImportModpackAsync()

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -36,6 +37,7 @@ public partial class MainWindow : FluentWindow
     private bool _startupServicesStarted;
     private bool _playitStartupAttempted;
     private bool _isNavigationLockedToRootSetup;
+    private readonly Dictionary<Type, Page> _shellPageCache = new();
 
     public MainWindow(
         IServiceProvider serviceProvider,
@@ -158,22 +160,7 @@ public partial class MainWindow : FluentWindow
             return false;
         }
 
-        if (_isShowingDetailPage && IsShellPageType(pageType))
-        {
-            return ReplaceShellContent(pageType);
-        }
-
-        bool navigated = RootNavigation.Navigate(pageType, parameter);
-        if (navigated && IsShellPageType(pageType))
-        {
-            _lastShellPageType = pageType;
-            _isShowingDetailPage = false;
-            RestorePaneAfterManagedDetailIfNeeded();
-            SyncNavigationSelection(pageType);
-            UpdateBreadcrumb(pageType);
-        }
-
-        return navigated;
+        return ReplaceShellContent(pageType);
     }
 
     public bool NavigateToDashboard()
@@ -212,11 +199,6 @@ public partial class MainWindow : FluentWindow
             return false;
         }
 
-        if (RootNavigation.CanGoBack && RootNavigation.GoBack())
-        {
-            return true;
-        }
-
         return NavigateToShellPage(_lastShellPageType);
     }
 
@@ -227,7 +209,8 @@ public partial class MainWindow : FluentWindow
             return false;
         }
 
-        bool replaced = RootNavigation.ReplaceContent(pageType);
+        Page shellPage = GetOrCreateShellPage(pageType);
+        bool replaced = RootNavigation.ReplaceContent(shellPage, null);
         if (replaced)
         {
             _lastShellPageType = pageType;
@@ -243,21 +226,35 @@ public partial class MainWindow : FluentWindow
 
     private void OnNavigating(NavigationView sender, NavigatingCancelEventArgs args)
     {
-        if (!_isNavigationLockedToRootSetup)
+        Type? pageType = GetRequestedPageType(args.Page);
+
+        if (_isNavigationLockedToRootSetup)
         {
+            if (pageType == typeof(RootDirectorySetupPage))
+            {
+                return;
+            }
+
+            args.Cancel = true;
+            _logger.LogDebug(
+                "Blocked navigation to {PageType} until the PocketMC root directory has been selected.",
+                pageType?.Name ?? "<unknown>");
             return;
         }
 
-        Type? pageType = GetRequestedPageType(args.Page);
-        if (pageType == typeof(RootDirectorySetupPage))
+        if (!IsShellPageType(pageType))
         {
             return;
         }
 
         args.Cancel = true;
-        _logger.LogDebug(
-            "Blocked navigation to {PageType} until the PocketMC root directory has been selected.",
-            pageType?.Name ?? "<unknown>");
+        if (_serviceProvider.GetService(typeof(PocketMC.Desktop.Core.Interfaces.IAppNavigationService)) is PocketMC.Desktop.Core.Interfaces.IAppNavigationService navigationService)
+        {
+            navigationService.NavigateToShellPage(pageType!);
+            return;
+        }
+
+        ReplaceShellContent(pageType!);
     }
 
     private void SyncNavigationSelection(Type? pageType)
@@ -337,6 +334,23 @@ public partial class MainWindow : FluentWindow
         }
 
         return null;
+    }
+
+    private Page GetOrCreateShellPage(Type pageType)
+    {
+        if (_shellPageCache.TryGetValue(pageType, out Page? cachedPage))
+        {
+            return cachedPage;
+        }
+
+        object page = _serviceProvider.GetRequiredService(pageType);
+        if (page is not Page shellPage)
+        {
+            throw new InvalidOperationException($"{pageType.Name} is not a WPF Page.");
+        }
+
+        _shellPageCache[pageType] = shellPage;
+        return shellPage;
     }
 
     private void SetNavigationItemActiveState(NavigationViewItem item, bool isActive)
@@ -836,6 +850,17 @@ public partial class MainWindow : FluentWindow
         {
             bool navigateToDashboardOnCompletion = !_settingsManager.Load().HasCompletedFirstLaunch;
             var guidePage = Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance<PocketMC.Desktop.Views.PlayitGuidePage>(_serviceProvider, claimUrl, navigateToDashboardOnCompletion);
+            if (_serviceProvider.GetService(typeof(PocketMC.Desktop.Core.Interfaces.IAppNavigationService)) is PocketMC.Desktop.Core.Interfaces.IAppNavigationService navigationService)
+            {
+                navigationService.NavigateToDetailPage(
+                    guidePage,
+                    "Playit.gg Setup",
+                    PocketMC.Desktop.Core.Interfaces.DetailRouteKind.PlayitGuide,
+                    PocketMC.Desktop.Core.Interfaces.DetailBackNavigation.Tunnel,
+                    clearDetailStack: true);
+                return;
+            }
+
             NavigateToDetailPage(guidePage, "Playit.gg Setup");
         });
     }

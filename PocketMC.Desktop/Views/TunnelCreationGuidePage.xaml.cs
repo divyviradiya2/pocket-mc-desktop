@@ -96,20 +96,9 @@ namespace PocketMC.Desktop.Views
 
             _pollingCts?.Cancel();
 
-            if (_navigationService.NavigateBack())
+            if (!_navigationService.NavigateBack())
             {
-                return;
-            }
-
-            var mainWindow = Window.GetWindow(this) as MainWindow;
-            if (mainWindow?.NavigateBackFromDetail() == true)
-            {
-                return;
-            }
-
-            if (NavigationService?.CanGoBack == true)
-            {
-                NavigationService.GoBack();
+                _navigationService.NavigateToDashboard();
             }
         }
     }
