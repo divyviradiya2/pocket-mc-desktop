@@ -44,7 +44,6 @@ namespace PocketMC.Desktop.ViewModels
         public ICommand StartServerCommand { get; }
         public ICommand StopServerCommand { get; }
         public ICommand DeleteInstanceCommand { get; }
-        public ICommand RenameInstanceCommand { get; }
         public ICommand OpenFolderCommand { get; }
         public ICommand CopyCrashReportCommand { get; }
         public ICommand ServerSettingsCommand { get; }
@@ -82,7 +81,6 @@ namespace PocketMC.Desktop.ViewModels
             StartServerCommand = new RelayCommand(StartServer);
             StopServerCommand = new RelayCommand(StopServer);
             DeleteInstanceCommand = new RelayCommand(DeleteInstance);
-            RenameInstanceCommand = new RelayCommand(RenameInstance);
             OpenFolderCommand = new RelayCommand(OpenFolder);
             CopyCrashReportCommand = new RelayCommand(CopyCrashReport);
             ServerSettingsCommand = new RelayCommand(OpenSettings);
@@ -517,18 +515,16 @@ namespace PocketMC.Desktop.ViewModels
                     string? path = _instanceManager.GetInstancePath(vm.Id);
                     if (path != null && Directory.Exists(path))
                     {
-                        await PocketMC.Desktop.Utils.FileUtils.CleanDirectoryAsync(path);
-                        Directory.Delete(path, true);
+                        try 
+                        {
+                            await PocketMC.Desktop.Utils.FileUtils.CleanDirectoryAsync(path);
+                        }
+                        catch { /* Ignore since Directory.Delete will retry next */ }
+                        
+                        _instanceManager.DeleteInstance(vm.Id);
                     }
-                    LoadInstances();
                 }
             }
-        }
-
-        private void RenameInstance(object? parameter)
-        {
-            // Placeholder: Implementing a full rename dialog might require a custom popup window,
-            // but we can ask the UI layer to handle it or use a simple input dialog if available.
         }
 
         private void OpenFolder(object? parameter)
