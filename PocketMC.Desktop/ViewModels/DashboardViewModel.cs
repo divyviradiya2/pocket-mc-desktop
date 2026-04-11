@@ -158,7 +158,12 @@ namespace PocketMC.Desktop.ViewModels
         private void NavigateToNewInstance()
         {
             var newInstancePage = ActivatorUtilities.CreateInstance<NewInstancePage>(_serviceProvider);
-            _navigationService.NavigateToDetailPage(newInstancePage, "New Instance");
+            _navigationService.NavigateToDetailPage(
+                newInstancePage,
+                "New Instance",
+                DetailRouteKind.NewInstance,
+                DetailBackNavigation.Dashboard,
+                clearDetailStack: true);
         }
 
         public void LoadInstances()
@@ -314,7 +319,12 @@ namespace PocketMC.Desktop.ViewModels
                                 }
                                 _dispatcher.Invoke(() => vm.TunnelAddress = address);
                             };
-                            _navigationService.NavigateToDetailPage(guidePage, $"Tunnel Setup: {vm.Name}");
+                            _navigationService.NavigateToDetailPage(
+                                guidePage,
+                                $"Tunnel Setup: {vm.Name}",
+                                DetailRouteKind.TunnelCreationGuide,
+                                DetailBackNavigation.Dashboard,
+                                clearDetailStack: true);
                         });
                         break;
 
@@ -572,7 +582,12 @@ namespace PocketMC.Desktop.ViewModels
             {
                 var settingsViewModel = ActivatorUtilities.CreateInstance<ServerSettingsViewModel>(_serviceProvider, vm.Metadata);
                 var settingsPage = ActivatorUtilities.CreateInstance<ServerSettingsPage>(_serviceProvider, settingsViewModel);
-                _navigationService.NavigateToDetailPage(settingsPage, $"Settings: {vm.Name}");
+                _navigationService.NavigateToDetailPage(
+                    settingsPage,
+                    $"Settings: {vm.Name}",
+                    DetailRouteKind.ServerSettings,
+                    DetailBackNavigation.Dashboard,
+                    clearDetailStack: true);
             }
         }
 
@@ -588,7 +603,12 @@ namespace PocketMC.Desktop.ViewModels
                 }
 
                 var consolePage = ActivatorUtilities.CreateInstance<ServerConsolePage>(_serviceProvider, vm.Metadata, process);
-                _navigationService.NavigateToDetailPage(consolePage, $"Console: {vm.Name}");
+                _navigationService.NavigateToDetailPage(
+                    consolePage,
+                    $"Console: {vm.Name}",
+                    DetailRouteKind.ServerConsole,
+                    DetailBackNavigation.Dashboard,
+                    clearDetailStack: true);
             }
         }
     }

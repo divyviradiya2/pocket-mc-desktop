@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Navigation;
 using Microsoft.Extensions.Logging;
+using PocketMC.Desktop.Core.Interfaces;
 using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Services;
 
@@ -15,6 +16,7 @@ namespace PocketMC.Desktop.Views
 {
     public partial class NewInstancePage : Page
     {
+        private readonly IAppNavigationService _navigationService;
         private readonly InstanceManager _instanceManager;
         private readonly VanillaProvider _vanillaProvider;
         private readonly PaperProvider _paperProvider;
@@ -27,6 +29,7 @@ namespace PocketMC.Desktop.Views
         private int _versionLoadRequestId;
 
         public NewInstancePage(
+            IAppNavigationService navigationService,
             InstanceManager instanceManager,
             VanillaProvider vanillaProvider,
             PaperProvider paperProvider,
@@ -35,6 +38,7 @@ namespace PocketMC.Desktop.Views
             ILogger<NewInstancePage> logger)
         {
             InitializeComponent();
+            _navigationService = navigationService;
             _instanceManager = instanceManager;
             _vanillaProvider = vanillaProvider;
             _paperProvider = paperProvider;
@@ -360,19 +364,7 @@ namespace PocketMC.Desktop.Views
 
         private bool NavigateToDashboard()
         {
-            var mainWindow = Window.GetWindow(this) as MainWindow;
-            if (mainWindow?.NavigateToDashboard() == true)
-            {
-                return true;
-            }
-
-            if (NavigationService?.CanGoBack == true)
-            {
-                NavigationService.GoBack();
-                return true;
-            }
-
-            return false;
+            return _navigationService.NavigateToDashboard();
         }
 
         private void MinecraftEulaLink_RequestNavigate(object sender, RequestNavigateEventArgs e)

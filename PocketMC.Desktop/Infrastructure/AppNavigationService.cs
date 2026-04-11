@@ -1,10 +1,17 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows.Controls;
 using PocketMC.Desktop.Core.Interfaces;
+using PocketMC.Desktop.Navigation;
+using PocketMC.Desktop.Views;
 
 namespace PocketMC.Desktop.Infrastructure
 {
     public class AppNavigationService : IAppNavigationService
     {
+        private readonly ControlledNavigationStack _detailStack = new();
+        private readonly List<DetailPageEntry> _detailPages = new();
         private MainWindow? _mainWindow;
 
         public void Initialize(MainWindow mainWindow)
@@ -14,26 +21,221 @@ namespace PocketMC.Desktop.Infrastructure
 
         public bool NavigateToDashboard()
         {
-            return _mainWindow?.NavigateToDashboard() ?? false;
+            if (_mainWindow == null)
+            {
+                return false;
+            }
+
+            bool navigated = _mainWindow.NavigateToDashboard();
+            if (navigated)
+            {
+                ClearDetailStack();
+            }
+
+            return navigated;
         }
 
-        public bool NavigateToDetailPage(Type pageType, object? parameter = null, string? breadcrumbLabel = null)
+        public bool NavigateToTunnel()
         {
-            // Note: Wpf.Ui Navigate method on INavigationService doesn't perfectly align with passing already-instantiated objects
-            // unless we use ReplaceContent or similar custom methods in MainWindow.
-            // Our MainWindow has `NavigateToDetailPage(Page page, string breadcrumbLabel)`
-            throw new NotImplementedException("Use NavigateToDetailPage(Page, string) instead for now.");
+            if (_mainWindow == null)
+            {
+                return false;
+            }
+
+            bool navigated = _mainWindow.NavigateToShellPage(typeof(TunnelPage));
+            if (navigated)
+            {
+                ClearDetailStack();
+            }
+
+            return navigated;
         }
 
-        // Let's add the specific override
-        public bool NavigateToDetailPage(System.Windows.Controls.Page page, string breadcrumbLabel)
+        public bool NavigateToShellPage(Type pageType)
         {
-            return _mainWindow?.NavigateToDetailPage(page, breadcrumbLabel) ?? false;
+            if (_mainWindow == null)
+            {
+                return false;
+            }
+
+            bool navigated = _mainWindow.NavigateToShellPage(pageType);
+            if (navigated)
+            {
+                ClearDetailStack();
+            }
+
+            return navigated;
+        }
+
+        public bool NavigateToDetailPage(
+            Page page,
+            string breadcrumbLabel,
+            DetailRouteKind routeKind,
+            DetailBackNavigation backNavigation,
+            bool clearDetailStack = false)
+        {
+            if (_mainWindow == null)
+            {
+                return false;
+            }
+
+            ValidateDetailTransition(routeKind, backNavigation);
+
+            bool navigated = _mainWindow.NavigateToDetailPage(page, breadcrumbLabel);
+            if (!navigated)
+            {
+                return false;
+            }
+
+            if (clearDetailStack)
+            {
+                ClearDetailStack();
+            }
+
+            ControlledNavigationEntry stackEntry = _detailStack.Push(
+                MapRoute(routeKind),
+                MapBackTarget(backNavigation),
+                clearExistingStack: false);
+
+            _detailPages.Add(new DetailPageEntry(stackEntry.EntryId, routeKind, page, breadcrumbLabel));
+            return true;
         }
 
         public bool NavigateBack()
         {
-            return _mainWindow?.NavigateBackFromDetail() ?? false;
+            if (_mainWindow == null)
+            {
+                return false;
+            }
+
+            ControlledBackNavigationResult result = _detailStack.NavigateBack();
+            if (!result.Success)
+            {
+                return false;
+            }
+
+            DetailPageEntry? removedEntry = RemoveDetailEntry(result.RemovedEntryId, dispose: true);
+
+            if (result.TargetsShellRoute)
+            {
+                return _mainWindow.NavigateToShellPage(MapShellPageType(result.TargetRoute));
+            }
+
+            DetailPageEntry? targetEntry = _detailPages.LastOrDefault(entry => entry.EntryId == result.TargetEntryId);
+            if (targetEntry == null)
+            {
+                return _mainWindow.NavigateToDashboard();
+            }
+
+            return _mainWindow.NavigateToDetailPage(targetEntry.Page, targetEntry.BreadcrumbLabel);
         }
+
+        private void ValidateDetailTransition(DetailRouteKind routeKind, DetailBackNavigation backNavigation)
+        {
+            if (backNavigation != DetailBackNavigation.PreviousDetail)
+            {
+                return;
+            }
+
+            DetailPageEntry? current = _detailPages.LastOrDefault();
+            if (current == null)
+            {
+                throw new InvalidOperationException($"{routeKind} requires a parent detail route, but none is active.");
+            }
+
+            bool validParent = routeKind switch
+            {
+                DetailRouteKind.PluginBrowser => current.RouteKind == DetailRouteKind.ServerSettings,
+                _ => true
+            };
+
+            if (!validParent)
+            {
+                throw new InvalidOperationException(
+                    $"{routeKind} cannot be opened from {current.RouteKind}. The current flow is not allowed.");
+            }
+        }
+
+        private void ClearDetailStack()
+        {
+            foreach (DetailPageEntry entry in _detailPages)
+            {
+                DisposePage(entry.Page);
+            }
+
+            _detailPages.Clear();
+            _detailStack.Clear();
+        }
+
+        private DetailPageEntry? RemoveDetailEntry(string? entryId, bool dispose)
+        {
+            if (string.IsNullOrWhiteSpace(entryId))
+            {
+                return null;
+            }
+
+            int index = _detailPages.FindIndex(entry => entry.EntryId == entryId);
+            if (index < 0)
+            {
+                return null;
+            }
+
+            DetailPageEntry entry = _detailPages[index];
+            _detailPages.RemoveAt(index);
+
+            if (dispose)
+            {
+                DisposePage(entry.Page);
+            }
+
+            return entry;
+        }
+
+        private static void DisposePage(Page page)
+        {
+            if (page is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+            else if (page.DataContext is IDisposable dataContextDisposable)
+            {
+                dataContextDisposable.Dispose();
+            }
+        }
+
+        private static NavigationRouteKind MapRoute(DetailRouteKind routeKind) => routeKind switch
+        {
+            DetailRouteKind.NewInstance => NavigationRouteKind.NewInstance,
+            DetailRouteKind.ServerSettings => NavigationRouteKind.ServerSettings,
+            DetailRouteKind.PluginBrowser => NavigationRouteKind.PluginBrowser,
+            DetailRouteKind.ServerConsole => NavigationRouteKind.ServerConsole,
+            DetailRouteKind.TunnelCreationGuide => NavigationRouteKind.TunnelCreationGuide,
+            DetailRouteKind.PlayitGuide => NavigationRouteKind.PlayitGuide,
+            _ => throw new ArgumentOutOfRangeException(nameof(routeKind), routeKind, null)
+        };
+
+        private static NavigationBackTarget MapBackTarget(DetailBackNavigation backNavigation) => backNavigation switch
+        {
+            DetailBackNavigation.Dashboard => NavigationBackTarget.ShellRoute(NavigationRouteKind.Dashboard),
+            DetailBackNavigation.Tunnel => NavigationBackTarget.ShellRoute(NavigationRouteKind.Tunnel),
+            DetailBackNavigation.PreviousDetail => NavigationBackTarget.PreviousDetail(),
+            _ => throw new ArgumentOutOfRangeException(nameof(backNavigation), backNavigation, null)
+        };
+
+        private static Type MapShellPageType(NavigationRouteKind routeKind) => routeKind switch
+        {
+            NavigationRouteKind.Dashboard => typeof(DashboardPage),
+            NavigationRouteKind.Tunnel => typeof(TunnelPage),
+            NavigationRouteKind.JavaSetup => typeof(JavaSetupPage),
+            NavigationRouteKind.AppSettings => typeof(AppSettingsPage),
+            NavigationRouteKind.About => typeof(AboutPage),
+            _ => throw new ArgumentOutOfRangeException(nameof(routeKind), routeKind, null)
+        };
+
+        private sealed record DetailPageEntry(
+            string EntryId,
+            DetailRouteKind RouteKind,
+            Page Page,
+            string BreadcrumbLabel);
     }
 }

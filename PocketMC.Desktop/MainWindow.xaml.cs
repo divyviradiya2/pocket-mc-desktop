@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -27,15 +28,11 @@ public partial class MainWindow : FluentWindow
     private readonly PlayitAgentService _playitAgentService;
     private readonly ILogger<MainWindow> _logger;
     private Type _lastShellPageType = typeof(DashboardPage);
-    private bool _isShowingDetailPage;
-    private ITitleBarContextSource? _titleBarContextSource;
-    private Type? _paneManagedDetailPageType;
-    private bool _paneWasOpenBeforeManagedDetail;
-    private bool _managedDetailPaneModified;
-    private bool _isApplyingPaneStateProgrammatically;
-    private bool _startupServicesStarted;
+private ITitleBarContextSource? _titleBarContextSource;
+private bool _startupServicesStarted;
     private bool _playitStartupAttempted;
     private bool _isNavigationLockedToRootSetup;
+    private readonly Dictionary<Type, Page> _shellPageCache = new();
 
     public MainWindow(
         IServiceProvider serviceProvider,
@@ -70,10 +67,7 @@ public partial class MainWindow : FluentWindow
         // Listen for navigation events to update breadcrumb
         RootNavigation.Navigating += OnNavigating;
         RootNavigation.Navigated += OnNavigated;
-        RootNavigation.PaneOpened += RootNavigation_PaneOpened;
-        RootNavigation.PaneClosed += RootNavigation_PaneClosed;
-
-        Closing += MainWindow_Closing;
+Closing += MainWindow_Closing;
         _globalMonitor.OnGlobalMetricsUpdated += UpdateGlobalHealth;
         _playitAgentService.OnClaimUrlReceived += OnPlayitClaimUrlReceived;
         _playitAgentService.OnTunnelRunning += OnPlayitTunnelRunning;
@@ -95,8 +89,7 @@ public partial class MainWindow : FluentWindow
         if (IsShellPageType(pageType))
         {
             _lastShellPageType = pageType!;
-            _isShowingDetailPage = false;
-            DetachTitleBarContextSource();
+DetachTitleBarContextSource();
             SyncNavigationSelection(pageType);
         }
         UpdateBreadcrumb(pageType);
@@ -158,22 +151,7 @@ public partial class MainWindow : FluentWindow
             return false;
         }
 
-        if (_isShowingDetailPage && IsShellPageType(pageType))
-        {
-            return ReplaceShellContent(pageType);
-        }
-
-        bool navigated = RootNavigation.Navigate(pageType, parameter);
-        if (navigated && IsShellPageType(pageType))
-        {
-            _lastShellPageType = pageType;
-            _isShowingDetailPage = false;
-            RestorePaneAfterManagedDetailIfNeeded();
-            SyncNavigationSelection(pageType);
-            UpdateBreadcrumb(pageType);
-        }
-
-        return navigated;
+        return ReplaceShellContent(pageType);
     }
 
     public bool NavigateToDashboard()
@@ -196,9 +174,7 @@ public partial class MainWindow : FluentWindow
         bool replaced = RootNavigation.ReplaceContent(page, null);
         if (replaced)
         {
-            _isShowingDetailPage = true;
-            ApplyDetailPageShellState(page);
-            AttachTitleBarContextSource(page as ITitleBarContextSource);
+AttachTitleBarContextSource(page as ITitleBarContextSource);
             UpdateBreadcrumbLabel(breadcrumbLabel);
         }
 
@@ -212,7 +188,7 @@ public partial class MainWindow : FluentWindow
             return false;
         }
 
-        return NavigateToDashboard();
+        return NavigateToShellPage(_lastShellPageType);
     }
 
     private bool ReplaceShellContent(Type pageType)
@@ -222,13 +198,12 @@ public partial class MainWindow : FluentWindow
             return false;
         }
 
-        bool replaced = RootNavigation.ReplaceContent(pageType);
+        Page shellPage = GetOrCreateShellPage(pageType);
+        bool replaced = RootNavigation.ReplaceContent(shellPage, null);
         if (replaced)
         {
             _lastShellPageType = pageType;
-            _isShowingDetailPage = false;
-            RestorePaneAfterManagedDetailIfNeeded();
-            DetachTitleBarContextSource();
+DetachTitleBarContextSource();
             SyncNavigationSelection(pageType);
             UpdateBreadcrumb(pageType);
         }
@@ -238,21 +213,35 @@ public partial class MainWindow : FluentWindow
 
     private void OnNavigating(NavigationView sender, NavigatingCancelEventArgs args)
     {
-        if (!_isNavigationLockedToRootSetup)
+        Type? pageType = GetRequestedPageType(args.Page);
+
+        if (_isNavigationLockedToRootSetup)
         {
+            if (pageType == typeof(RootDirectorySetupPage))
+            {
+                return;
+            }
+
+            args.Cancel = true;
+            _logger.LogDebug(
+                "Blocked navigation to {PageType} until the PocketMC root directory has been selected.",
+                pageType?.Name ?? "<unknown>");
             return;
         }
 
-        Type? pageType = GetRequestedPageType(args.Page);
-        if (pageType == typeof(RootDirectorySetupPage))
+        if (!IsShellPageType(pageType))
         {
             return;
         }
 
         args.Cancel = true;
-        _logger.LogDebug(
-            "Blocked navigation to {PageType} until the PocketMC root directory has been selected.",
-            pageType?.Name ?? "<unknown>");
+        if (_serviceProvider.GetService(typeof(PocketMC.Desktop.Core.Interfaces.IAppNavigationService)) is PocketMC.Desktop.Core.Interfaces.IAppNavigationService navigationService)
+        {
+            navigationService.NavigateToShellPage(pageType!);
+            return;
+        }
+
+        ReplaceShellContent(pageType!);
     }
 
     private void SyncNavigationSelection(Type? pageType)
@@ -334,6 +323,23 @@ public partial class MainWindow : FluentWindow
         return null;
     }
 
+    private Page GetOrCreateShellPage(Type pageType)
+    {
+        if (_shellPageCache.TryGetValue(pageType, out Page? cachedPage))
+        {
+            return cachedPage;
+        }
+
+        object page = _serviceProvider.GetRequiredService(pageType);
+        if (page is not Page shellPage)
+        {
+            throw new InvalidOperationException($"{pageType.Name} is not a WPF Page.");
+        }
+
+        _shellPageCache[pageType] = shellPage;
+        return shellPage;
+    }
+
     private void SetNavigationItemActiveState(NavigationViewItem item, bool isActive)
     {
         try
@@ -348,98 +354,6 @@ public partial class MainWindow : FluentWindow
         {
             _logger.LogDebug(ex, "Failed to update NavigationViewItem active state for {ItemName}.", item.Name);
         }
-    }
-
-    private void ApplyDetailPageShellState(Page page)
-    {
-        if (ShouldCollapsePaneForDetail(page))
-        {
-            CollapsePaneForDetail(page.GetType());
-            return;
-        }
-
-        RestorePaneAfterManagedDetailIfNeeded();
-    }
-
-    private static bool ShouldCollapsePaneForDetail(Page page) =>
-        page is ServerConsolePage || page is ServerSettingsPage;
-
-    private void CollapsePaneForDetail(Type detailPageType)
-    {
-        if (_paneManagedDetailPageType == null)
-        {
-            _paneWasOpenBeforeManagedDetail = RootNavigation.IsPaneOpen;
-            _managedDetailPaneModified = false;
-        }
-
-        _paneManagedDetailPageType = detailPageType;
-
-        if (RootNavigation.IsPaneOpen)
-        {
-            SetNavigationPaneOpen(false);
-        }
-    }
-
-    private void RestorePaneAfterManagedDetailIfNeeded()
-    {
-        if (_paneManagedDetailPageType == null)
-        {
-            return;
-        }
-
-        bool shouldRestorePreviousOpenState =
-            _paneWasOpenBeforeManagedDetail &&
-            !_managedDetailPaneModified &&
-            !RootNavigation.IsPaneOpen;
-
-        _paneManagedDetailPageType = null;
-        bool shouldOpenPane = shouldRestorePreviousOpenState;
-        _paneWasOpenBeforeManagedDetail = false;
-        _managedDetailPaneModified = false;
-
-        if (shouldOpenPane)
-        {
-            SetNavigationPaneOpen(true);
-        }
-    }
-
-    private void SetNavigationPaneOpen(bool isOpen)
-    {
-        if (RootNavigation.IsPaneOpen == isOpen)
-        {
-            return;
-        }
-
-        try
-        {
-            _isApplyingPaneStateProgrammatically = true;
-            RootNavigation.IsPaneOpen = isOpen;
-        }
-        finally
-        {
-            _isApplyingPaneStateProgrammatically = false;
-        }
-    }
-
-    private void RootNavigation_PaneOpened(NavigationView sender, RoutedEventArgs args)
-    {
-        TrackUserPaneChangeDuringManagedDetail(isOpen: true);
-    }
-
-    private void RootNavigation_PaneClosed(NavigationView sender, RoutedEventArgs args)
-    {
-        TrackUserPaneChangeDuringManagedDetail(isOpen: false);
-    }
-
-    private void TrackUserPaneChangeDuringManagedDetail(bool isOpen)
-    {
-        if (_paneManagedDetailPageType == null || _isApplyingPaneStateProgrammatically)
-        {
-            return;
-        }
-
-        _managedDetailPaneModified = true;
-        _paneWasOpenBeforeManagedDetail = isOpen;
     }
 
     private void AttachTitleBarContextSource(ITitleBarContextSource? source)
@@ -540,11 +454,10 @@ public partial class MainWindow : FluentWindow
     private void LockNavigationToRootSetup()
     {
         _isNavigationLockedToRootSetup = true;
-        _isShowingDetailPage = false;
         DetachTitleBarContextSource();
         RootNavigation.IsPaneVisible = false;
         RootNavigation.IsPaneToggleVisible = false;
-        SetNavigationPaneOpen(false);
+        RootNavigation.IsPaneOpen = false;
         SetShellNavigationEnabled(false);
         ClearNavigationSelection();
         BreadcrumbHost.Visibility = Visibility.Collapsed;
@@ -687,9 +600,7 @@ public partial class MainWindow : FluentWindow
         _playitAgentService.OnClaimUrlReceived -= OnPlayitClaimUrlReceived;
         _playitAgentService.OnTunnelRunning -= OnPlayitTunnelRunning;
         RootNavigation.Navigating -= OnNavigating;
-        RootNavigation.PaneOpened -= RootNavigation_PaneOpened;
-        RootNavigation.PaneClosed -= RootNavigation_PaneClosed;
-        DetachTitleBarContextSource();
+DetachTitleBarContextSource();
         _backupScheduler.Stop();
         _globalMonitor.OnGlobalMetricsUpdated -= UpdateGlobalHealth;
         _serverProcessManager.KillAll();
@@ -831,6 +742,17 @@ public partial class MainWindow : FluentWindow
         {
             bool navigateToDashboardOnCompletion = !_settingsManager.Load().HasCompletedFirstLaunch;
             var guidePage = Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance<PocketMC.Desktop.Views.PlayitGuidePage>(_serviceProvider, claimUrl, navigateToDashboardOnCompletion);
+            if (_serviceProvider.GetService(typeof(PocketMC.Desktop.Core.Interfaces.IAppNavigationService)) is PocketMC.Desktop.Core.Interfaces.IAppNavigationService navigationService)
+            {
+                navigationService.NavigateToDetailPage(
+                    guidePage,
+                    "Playit.gg Setup",
+                    PocketMC.Desktop.Core.Interfaces.DetailRouteKind.PlayitGuide,
+                    PocketMC.Desktop.Core.Interfaces.DetailBackNavigation.Tunnel,
+                    clearDetailStack: true);
+                return;
+            }
+
             NavigateToDetailPage(guidePage, "Playit.gg Setup");
         });
     }

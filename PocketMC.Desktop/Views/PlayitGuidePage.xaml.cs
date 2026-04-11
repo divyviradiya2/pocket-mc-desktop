@@ -2,18 +2,24 @@ using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Navigation;
+using PocketMC.Desktop.Core.Interfaces;
 
 namespace PocketMC.Desktop.Views
 {
     public partial class PlayitGuidePage : Page
     {
+        private readonly IAppNavigationService _navigationService;
         private readonly Services.PlayitAgentService _agentService;
         private readonly bool _navigateToDashboardOnCompletion;
 
-        public PlayitGuidePage(Services.PlayitAgentService agentService, string claimUrl, bool navigateToDashboardOnCompletion)
+        public PlayitGuidePage(
+            IAppNavigationService navigationService,
+            Services.PlayitAgentService agentService,
+            string claimUrl,
+            bool navigateToDashboardOnCompletion)
         {
             InitializeComponent();
+            _navigationService = navigationService;
             _agentService = agentService;
             _navigateToDashboardOnCompletion = navigateToDashboardOnCompletion;
 
@@ -45,19 +51,23 @@ namespace PocketMC.Desktop.Views
                 StatusText.Text = "✓ Agent connected!";
                 _agentService.OnTunnelRunning -= OnTunnelRunning;
 
-                var mainWindow = Window.GetWindow(this) as MainWindow;
-                if (_navigateToDashboardOnCompletion && mainWindow?.NavigateToDashboard() == true) return;
-                if (mainWindow?.NavigateBackFromDetail() == true) return;
-                if (NavigationService?.CanGoBack == true) NavigationService.GoBack();
+                if (_navigateToDashboardOnCompletion)
+                {
+                    _navigationService.NavigateToDashboard();
+                    return;
+                }
+
+                _navigationService.NavigateToTunnel();
             });
         }
 
         private void BtnBack_Click(object sender, RoutedEventArgs e)
         {
             _agentService.OnTunnelRunning -= OnTunnelRunning;
-            var mainWindow = Window.GetWindow(this) as MainWindow;
-            if (mainWindow?.NavigateBackFromDetail() == true) return;
-            if (NavigationService?.CanGoBack == true) NavigationService.GoBack();
+            if (!_navigationService.NavigateBack())
+            {
+                _navigationService.NavigateToTunnel();
+            }
         }
 
         private void PlayitGuidePage_Unloaded(object sender, RoutedEventArgs e)

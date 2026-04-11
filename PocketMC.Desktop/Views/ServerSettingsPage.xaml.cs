@@ -8,17 +8,17 @@ using System.Windows.Controls.Primitives;
 
 namespace PocketMC.Desktop.Views
 {
-    public partial class ServerSettingsPage : Page
+    public partial class ServerSettingsPage : Page, IDisposable
     {
         public ServerSettingsViewModel ViewModel { get; }
         private readonly MouseWheelEventHandler _previewMouseWheelHandler;
+        private bool _isDisposed;
 
         public ServerSettingsPage(ServerSettingsViewModel viewModel)
         {
             InitializeComponent();
             ViewModel = viewModel;
             DataContext = ViewModel;
-            ViewModel.HostPage = this;
             _previewMouseWheelHandler = OnSettingsPagePreviewMouseWheel;
 
             // Optional UI logic for tab synchronization and animations can remain here
@@ -77,7 +77,6 @@ namespace PocketMC.Desktop.Views
         private void ServerSettingsPage_Unloaded(object sender, RoutedEventArgs e)
         {
             RemoveHandler(UIElement.PreviewMouseWheelEvent, _previewMouseWheelHandler);
-            ViewModel.Dispose();
             
             if (Window.GetWindow(this) as MainWindow is { } mainWindow)
             {
@@ -239,6 +238,17 @@ namespace PocketMC.Desktop.Views
                 current = visualParent ?? LogicalTreeHelper.GetParent(current);
             }
             return null;
+        }
+
+        public void Dispose()
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            _isDisposed = true;
+            ViewModel.Dispose();
         }
     }
 }
