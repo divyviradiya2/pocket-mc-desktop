@@ -22,7 +22,7 @@ namespace PocketMC.Desktop.Core.Interfaces
 
     public interface IAppNavigationService
     {
-        void Initialize(INavigationHost navigationHost);
+        void Initialize(IShellHost shellHost);
         bool NavigateToDashboard();
         bool NavigateToTunnel();
         bool NavigateToShellPage(Type pageType);

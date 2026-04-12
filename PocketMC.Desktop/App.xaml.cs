@@ -4,9 +4,18 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using PocketMC.Desktop.Services;
-using PocketMC.Desktop.Views;
 using PocketMC.Desktop.Core.Interfaces;
 using PocketMC.Desktop.Infrastructure;
+using PocketMC.Desktop.Features.Shell;
+using PocketMC.Desktop.Features.Dashboard;
+using PocketMC.Desktop.Features.Settings;
+using PocketMC.Desktop.Features.InstanceCreation;
+using PocketMC.Desktop.Features.Console;
+using PocketMC.Desktop.Features.Marketplace;
+using PocketMC.Desktop.Features.Tunnel;
+using PocketMC.Desktop.Features.Setup;
+using PocketMC.Desktop.Features.Mods;
+using PocketMC.Desktop.Features.Java;
 
 using System.Net.Http;
 using System.Net;
@@ -47,15 +56,24 @@ public partial class App : Application
                 services.AddSingleton<ApplicationState>();
                 services.AddSingleton<JobObject>();
                 services.AddSingleton<DownloaderService>();
+                services.AddSingleton<JavaAdoptiumClient>();
+                services.AddSingleton<JavaRuntimeValidator>();
                 services.AddSingleton<JavaProvisioningService>();
                 services.AddSingleton<WindowsToastNotificationService>();
                 services.AddSingleton<INotificationService>(provider => provider.GetRequiredService<WindowsToastNotificationService>());
                 services.AddSingleton<ServerProcessManager>();
+                services.AddSingleton<IServerLifecycleService, ServerLifecycleService>();
                 services.AddSingleton<ServerLaunchConfigurator>();
+                services.AddSingleton<IShellUIStateService, ShellUIStateService>();
+                services.AddSingleton<IShellVisualService, ShellVisualService>();
                 services.AddSingleton<ResourceMonitorService>();
                 services.AddSingleton<BackupService>();
                 services.AddSingleton<BackupSchedulerService>();
+                services.AddSingleton<ModpackParser>();
+                services.AddSingleton<ModpackService>();
                 services.AddSingleton<ShellStartupCoordinator>();
+                services.AddSingleton<PlayitAgentProcessManager>();
+                services.AddSingleton<PlayitAgentStateMachine>();
                 services.AddSingleton<PlayitApiClient>();
                 services.AddSingleton<PlayitAgentService>();
                 services.AddSingleton<InstanceTunnelOrchestrator>();
@@ -65,7 +83,6 @@ public partial class App : Application
                 services.AddHttpClient<VanillaProvider>(client => client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop"));
                 services.AddHttpClient<FabricProvider>(client => client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop"));
                 services.AddHttpClient<ForgeProvider>(client => client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop"));
-                services.AddSingleton<ModpackService>();
                 services.AddHttpClient<ModrinthService>(client =>
                 {
                     client.DefaultRequestHeaders.Add("User-Agent", "PocketMC-Desktop");
@@ -98,12 +115,17 @@ public partial class App : Application
                 services.AddTransient<AboutPage>();
                 services.AddTransient<AppSettingsPage>();
                 services.AddTransient<RootDirectorySetupPage>();
-                services.AddTransient<PocketMC.Desktop.ViewModels.DashboardViewModel>();
-                services.AddTransient<PocketMC.Desktop.ViewModels.ServerSettingsViewModel>();
-                services.AddSingleton<PocketMC.Desktop.ViewModels.ShellViewModel>();
+                services.AddTransient<DashboardInstanceListVM>();
+                services.AddTransient<DashboardMetricsVM>();
+                services.AddTransient<DashboardActionsVM>();
+                services.AddTransient<DashboardViewModel>();
+                services.AddTransient<ServerSettingsViewModel>();
+                services.AddSingleton<ShellViewModel>();
                 services.AddTransient<DashboardPage>();
                 services.AddTransient<NewInstancePage>();
                 services.AddTransient<PluginBrowserPage>();
+                services.AddTransient<ServerSettingsPage>();
+                services.AddTransient<ServerConsolePage>();
             })
             .Build();
 

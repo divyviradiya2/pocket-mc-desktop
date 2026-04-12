@@ -4,7 +4,14 @@ using System.Linq;
 using System.Windows.Controls;
 using PocketMC.Desktop.Core.Interfaces;
 using PocketMC.Desktop.Navigation;
-using PocketMC.Desktop.Views;
+using PocketMC.Desktop.Features.Dashboard;
+using PocketMC.Desktop.Features.Tunnel;
+using PocketMC.Desktop.Features.Setup;
+using PocketMC.Desktop.Features.Shell;
+using PocketMC.Desktop.Features.Settings;
+using PocketMC.Desktop.Features.Console;
+using PocketMC.Desktop.Features.Marketplace;
+using PocketMC.Desktop.Features.InstanceCreation;
 
 namespace PocketMC.Desktop.Infrastructure
 {
@@ -12,24 +19,28 @@ namespace PocketMC.Desktop.Infrastructure
     {
         private readonly ControlledNavigationStack _detailStack = new();
         private readonly List<DetailPageEntry> _detailPages = new();
-        private INavigationHost? _navigationHost;
+        private readonly IShellUIStateService _uiStateService;
+        private IShellHost? _shellHost;
 
-        public void Initialize(INavigationHost navigationHost)
+        public AppNavigationService(IShellUIStateService uiStateService)
         {
-            _navigationHost = navigationHost;
+            _uiStateService = uiStateService;
+        }
+
+        public void Initialize(IShellHost shellHost)
+        {
+            _shellHost = shellHost;
         }
 
         public bool NavigateToDashboard()
         {
-            if (_navigationHost == null)
-            {
-                return false;
-            }
+            if (_shellHost == null) return false;
 
-            bool navigated = _navigationHost.NavigateToDashboard();
+            bool navigated = _shellHost.ShowShellPage(typeof(DashboardPage));
             if (navigated)
             {
                 ClearDetailStack();
+                _uiStateService.UpdateBreadcrumb("Dashboard");
             }
 
             return navigated;
@@ -37,15 +48,13 @@ namespace PocketMC.Desktop.Infrastructure
 
         public bool NavigateToTunnel()
         {
-            if (_navigationHost == null)
-            {
-                return false;
-            }
+            if (_shellHost == null) return false;
 
-            bool navigated = _navigationHost.NavigateToShellPage(typeof(TunnelPage));
+            bool navigated = _shellHost.ShowShellPage(typeof(TunnelPage));
             if (navigated)
             {
                 ClearDetailStack();
+                _uiStateService.UpdateBreadcrumb("Tunnel");
             }
 
             return navigated;
@@ -53,15 +62,13 @@ namespace PocketMC.Desktop.Infrastructure
 
         public bool NavigateToShellPage(Type pageType)
         {
-            if (_navigationHost == null)
-            {
-                return false;
-            }
+            if (_shellHost == null) return false;
 
-            bool navigated = _navigationHost.NavigateToShellPage(pageType);
+            bool navigated = _shellHost.ShowShellPage(pageType);
             if (navigated)
             {
                 ClearDetailStack();
+                _uiStateService.UpdateBreadcrumb(GetBreadcrumbForPageType(pageType));
             }
 
             return navigated;
@@ -74,23 +81,14 @@ namespace PocketMC.Desktop.Infrastructure
             DetailBackNavigation backNavigation,
             bool clearDetailStack = false)
         {
-            if (_navigationHost == null)
-            {
-                return false;
-            }
+            if (_shellHost == null) return false;
 
             ValidateDetailTransition(routeKind, backNavigation);
 
-            bool navigated = _navigationHost.NavigateToDetailPage(page, breadcrumbLabel);
-            if (!navigated)
-            {
-                return false;
-            }
+            bool navigated = _shellHost.ShowDetailPage(page, breadcrumbLabel);
+            if (!navigated) return false;
 
-            if (clearDetailStack)
-            {
-                ClearDetailStack();
-            }
+            if (clearDetailStack) ClearDetailStack();
 
             ControlledNavigationEntry stackEntry = _detailStack.Push(
                 MapRoute(routeKind),
@@ -98,36 +96,50 @@ namespace PocketMC.Desktop.Infrastructure
                 clearExistingStack: false);
 
             _detailPages.Add(new DetailPageEntry(stackEntry.EntryId, routeKind, page, breadcrumbLabel));
+            _uiStateService.UpdateBreadcrumb(breadcrumbLabel);
+            
             return true;
         }
 
         public bool NavigateBack()
         {
-            if (_navigationHost == null)
-            {
-                return false;
-            }
+            if (_shellHost == null) return false;
 
             ControlledBackNavigationResult result = _detailStack.NavigateBack();
-            if (!result.Success)
-            {
-                return false;
-            }
+            if (!result.Success) return false;
 
-            DetailPageEntry? removedEntry = RemoveDetailEntry(result.RemovedEntryId, dispose: true);
+            RemoveDetailEntry(result.RemovedEntryId, dispose: true);
 
             if (result.TargetsShellRoute)
             {
-                return _navigationHost.NavigateToShellPage(MapShellPageType(result.TargetRoute));
+                var pageType = MapShellPageType(result.TargetRoute);
+                bool navigated = _shellHost.ShowShellPage(pageType);
+                if (navigated) _uiStateService.UpdateBreadcrumb(GetBreadcrumbForPageType(pageType));
+                return navigated;
             }
 
             DetailPageEntry? targetEntry = _detailPages.LastOrDefault(entry => entry.EntryId == result.TargetEntryId);
-            if (targetEntry == null)
-            {
-                return _navigationHost.NavigateToDashboard();
-            }
+            if (targetEntry == null) return NavigateToDashboard();
 
-            return _navigationHost.NavigateToDetailPage(targetEntry.Page, targetEntry.BreadcrumbLabel);
+            bool detailNavigated = _shellHost.ShowDetailPage(targetEntry.Page, targetEntry.BreadcrumbLabel);
+            if (detailNavigated) _uiStateService.UpdateBreadcrumb(targetEntry.BreadcrumbLabel);
+            return detailNavigated;
+        }
+
+        private string? GetBreadcrumbForPageType(Type pageType)
+        {
+            return pageType.Name switch
+            {
+                nameof(DashboardPage) => "Dashboard",
+                nameof(TunnelPage) => "Tunnel",
+                nameof(JavaSetupPage) => "Java Setup",
+                nameof(AboutPage) => "About",
+                nameof(AppSettingsPage) => "Settings",
+                nameof(NewInstancePage) => "New Instance",
+                nameof(ServerSettingsPage) => "Server Settings",
+                nameof(ServerConsolePage) => "Console",
+                _ => null
+            };
         }
 
         private void ValidateDetailTransition(DetailRouteKind routeKind, DetailBackNavigation backNavigation)

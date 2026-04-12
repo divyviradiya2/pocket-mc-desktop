@@ -202,11 +202,12 @@ namespace PocketMC.Desktop.Services
             onProgress?.Invoke("Removing current world...");
             if (Directory.Exists(worldDir))
             {
-                await Utils.FileUtils.CleanDirectoryAsync(worldDir);
+                await FileUtils.CleanDirectoryAsync(worldDir);
             }
 
             onProgress?.Invoke("Extracting backup...");
-            await Task.Run(() => ZipFile.ExtractToDirectory(backupZipPath, worldDir));
+            // SEC-02: Use SafeZipExtractor to prevent zip-slip path traversal
+            await SafeZipExtractor.ExtractAsync(backupZipPath, worldDir);
 
             onProgress?.Invoke("World restored successfully!");
         }

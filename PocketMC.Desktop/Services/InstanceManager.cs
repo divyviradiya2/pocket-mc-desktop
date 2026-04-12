@@ -14,6 +14,12 @@ namespace PocketMC.Desktop.Services
 {
     public class InstanceManager
     {
+        public InstanceMetadata? GetInstanceMetadata(Guid id)
+        {
+            EnsureCacheLoaded();
+            return _metadataCache.TryGetValue(id, out var metadata) ? metadata : null;
+        }
+
         private const string MetadataFileName = ".pocket-mc.json";
         private const string EulaFileName = "eula.txt";
         private static readonly JsonSerializerOptions MetadataJsonOptions = new() { WriteIndented = true };
