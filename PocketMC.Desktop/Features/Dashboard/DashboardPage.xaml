@@ -95,7 +95,7 @@
                                               
                                 <!-- Status (Row 2) -->
                                 <TextBlock Grid.Row="2" Text="{Binding StatusText}" 
-                                           Foreground="{Binding StatusColor}" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{Binding StatusBrush}" FontSize="11" FontWeight="SemiBold"
                                            Margin="0,0,0,6"/>
 
                                 <!-- IP Row (Row 3) — always visible -->

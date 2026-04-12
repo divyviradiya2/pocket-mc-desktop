@@ -6,9 +6,8 @@ using Microsoft.Extensions.Logging;
 using PocketMC.Desktop.Core.Interfaces;
 using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Infrastructure;
-using PocketMC.Desktop.Features.Instances;
 
-namespace PocketMC.Desktop.Services;
+namespace PocketMC.Desktop.Features.Instances;
 
 /// <summary>
 /// Low-level process tracker that manages concrete OS process interactions.

@@ -12,6 +12,7 @@ using PocketMC.Desktop.Core.Interfaces;
 using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Services;
 using PocketMC.Desktop.Features.Instances;
+using PocketMC.Desktop.Features.Instances.Providers;
 using PocketMC.Desktop.Features.Marketplace;
 using PocketMC.Desktop.Features.Mods;
 using Microsoft.Extensions.DependencyInjection;

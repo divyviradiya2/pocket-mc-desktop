@@ -13,7 +13,7 @@ using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Infrastructure;
 using PocketMC.Desktop.Utils;
 
-namespace PocketMC.Desktop.Services;
+namespace PocketMC.Desktop.Features.Instances;
 
 /// <summary>
 /// Wraps a single Minecraft server process. 

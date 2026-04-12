@@ -12,6 +12,7 @@ using PocketMC.Desktop.Features.Tunnel;
 using PocketMC.Desktop.Features.Settings;
 using PocketMC.Desktop.Features.Mods;
 using PocketMC.Desktop.Features.Instances;
+using PocketMC.Desktop.Features.Instances.Backups;
 
 namespace PocketMC.Desktop.Features.Settings
 {

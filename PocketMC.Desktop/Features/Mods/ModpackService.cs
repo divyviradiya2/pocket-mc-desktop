@@ -12,6 +12,7 @@ using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Utils;
 using PocketMC.Desktop.Services;
 using PocketMC.Desktop.Features.Instances;
+using PocketMC.Desktop.Features.Instances.Providers;
 
 namespace PocketMC.Desktop.Features.Mods
 {

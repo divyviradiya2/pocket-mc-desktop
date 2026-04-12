@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using PocketMC.Desktop.Core.Interfaces;
 using PocketMC.Desktop.Core.Mvvm;
-using PocketMC.Desktop.Services;
+using PocketMC.Desktop.Features.Instances;
 
 namespace PocketMC.Desktop.Features.Settings
 {

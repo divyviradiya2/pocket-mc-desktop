@@ -3,9 +3,9 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using PocketMC.Desktop.Core.Mvvm;
 using PocketMC.Desktop.Models;
-using PocketMC.Desktop.Services;
 using PocketMC.Desktop.Features.Instances;
 using PocketMC.Desktop.Core.Interfaces;
+using PocketMC.Desktop.Services;
 
 namespace PocketMC.Desktop.Features.Dashboard
 {

@@ -9,6 +9,7 @@ using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Services;
 using PocketMC.Desktop.Infrastructure;
 using PocketMC.Desktop.Features.Settings;
+using PocketMC.Desktop.Features.Instances;
 
 namespace PocketMC.Desktop.Features.Tunnel
 {

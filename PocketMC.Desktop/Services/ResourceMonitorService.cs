@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Utils;
 using PocketMC.Desktop.Core.Interfaces;
+using PocketMC.Desktop.Features.Instances;
 
 namespace PocketMC.Desktop.Services
 {

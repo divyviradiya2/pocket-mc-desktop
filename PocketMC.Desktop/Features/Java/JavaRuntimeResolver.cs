@@ -2,7 +2,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using PocketMC.Desktop.Models;
 
-namespace PocketMC.Desktop.Services;
+namespace PocketMC.Desktop.Features.Java;
 
 public static class JavaRuntimeResolver
 {

@@ -4,262 +4,152 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Media;
 using PocketMC.Desktop.Models;
-using PocketMC.Desktop.Services;
+using PocketMC.Desktop.Features.Instances;
 using PocketMC.Desktop.Core.Interfaces;
 
-namespace PocketMC.Desktop.Features.Dashboard
+namespace PocketMC.Desktop.Features.Dashboard;
+
+public class InstanceCardViewModel : INotifyPropertyChanged
 {
-    public class InstanceCardViewModel : INotifyPropertyChanged
+    private InstanceMetadata _metadata;
+    private readonly ServerProcessManager _serverProcessManager;
+    private readonly IServerLifecycleService _lifecycleService;
+    private ServerState _state = ServerState.Stopped;
+    private string? _countdownText;
+    private string _cpuText = "· · ·";
+    private string _ramText = "· · ·";
+    private string _playerStatus = "· · ·";
+    private string? _tunnelAddress;
+    private string _ipDisplayText = "Will Appear Here!";
+
+    public InstanceCardViewModel(InstanceMetadata metadata, ServerProcessManager serverProcessManager, IServerLifecycleService lifecycleService)
     {
-        private readonly InstanceMetadata _metadata;
-        private readonly ServerProcessManager _serverProcessManager;
-        private readonly IServerLifecycleService _lifecycleService;
-        private ServerState _state = ServerState.Stopped;
-        private string? _countdownText;
-        private string _cpuText = "· · ·";
-        private string _ramText = "· · ·";
-        private string _playerStatus = "· · ·";
-        private string? _tunnelAddress;
-        private string _ipDisplayText = "Will Appear Here!";
+        _metadata = metadata;
+        _serverProcessManager = serverProcessManager;
+        _lifecycleService = lifecycleService;
 
-        public InstanceCardViewModel(InstanceMetadata metadata, ServerProcessManager serverProcessManager, IServerLifecycleService lifecycleService)
+        if (_serverProcessManager.IsRunning(metadata.Id))
         {
-            _metadata = metadata;
-            _serverProcessManager = serverProcessManager;
-            _lifecycleService = lifecycleService;
-
-            if (_serverProcessManager.IsRunning(metadata.Id))
-            {
-                var proc = _serverProcessManager.GetProcess(metadata.Id);
-                _state = proc?.State ?? ServerState.Stopped;
-            }
+            var proc = _serverProcessManager.GetProcess(metadata.Id);
+            _state = proc?.State ?? ServerState.Stopped;
         }
+    }
 
-        public InstanceMetadata Metadata => _metadata;
-        public Guid Id => _metadata.Id;
-        public string Name => _metadata.Name;
-        public string Description => _metadata.Description;
-        public bool IsRunning => _state == ServerState.Starting || _state == ServerState.Online || _state == ServerState.Stopping;
-        public bool IsWaitingToRestart => _lifecycleService.IsWaitingToRestart(Id);
-        public bool ShowRunningControls => IsRunning || IsWaitingToRestart;
-        public Visibility RunningControlsVisibility => ShowRunningControls ? Visibility.Visible : Visibility.Collapsed;
-        public Visibility StoppedControlsVisibility => ShowRunningControls ? Visibility.Collapsed : Visibility.Visible;
-        public string StopButtonText => IsWaitingToRestart ? "Abort" : "Stop";
-        public string MinecraftVersion => _metadata.MinecraftVersion;
-        public string ServerType => _metadata.ServerType;
+    public InstanceMetadata Metadata => _metadata;
+    public Guid Id => _metadata.Id;
+    public string Name => _metadata.Name;
+    public string Description => _metadata.Description;
+    public bool IsRunning => _state == ServerState.Starting || _state == ServerState.Online || _state == ServerState.Stopping;
+    public bool IsWaitingToRestart => _lifecycleService.IsWaitingToRestart(Id);
+    public bool ShowRunningControls => IsRunning || IsWaitingToRestart;
+    public Visibility RunningControlsVisibility => ShowRunningControls ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility StoppedControlsVisibility => ShowRunningControls ? Visibility.Collapsed : Visibility.Visible;
+    public string StopButtonText => IsWaitingToRestart ? "Abort" : "Stop";
+    public string MinecraftVersion => _metadata.MinecraftVersion;
+    public string ServerType => _metadata.ServerType;
+    public int MaxPlayers => _metadata.MaxPlayers;
+    public bool HasTunnelAddress => !string.IsNullOrEmpty(_tunnelAddress);
 
-        public string StatusText => _countdownText ?? _state switch
+    public string StatusText => _countdownText ?? _state switch
+    {
+        ServerState.Stopped => "● Stopped",
+        ServerState.Starting => "● Starting",
+        ServerState.Online => "● Online",
+        ServerState.Stopping => "● Stopping",
+        ServerState.Crashed => "⚠️ Crashed",
+        _ => "● Unknown"
+    };
+
+    public Brush StatusBrush => _state switch
+    {
+        ServerState.Online => Brushes.LimeGreen,
+        ServerState.Starting => Brushes.SkyBlue,
+        ServerState.Stopping => Brushes.Orange,
+        ServerState.Crashed => Brushes.Red,
+        _ => Brushes.DarkGray
+    };
+
+    public string CpuText { get => _cpuText; set { if (_cpuText != value) { _cpuText = value; OnPropertyChanged(nameof(CpuText)); } } }
+    public string RamText { get => _ramText; set { if (_ramText != value) { _ramText = value; OnPropertyChanged(nameof(RamText)); } } }
+    public string PlayerStatus { get => _playerStatus; set { if (_playerStatus != value) { _playerStatus = value; OnPropertyChanged(nameof(PlayerStatus)); } } }
+    public string IpDisplayText { get => _ipDisplayText; set { if (_ipDisplayText != value) { _ipDisplayText = value; OnPropertyChanged(nameof(IpDisplayText)); } } }
+
+    public string? TunnelAddress
+    {
+        get => _tunnelAddress;
+        set
         {
-            ServerState.Stopped => "● Stopped",
-            ServerState.Starting => "◉ Starting...",
-            ServerState.Online => "● Online",
-            ServerState.Stopping => "◉ Stopping...",
-            ServerState.Crashed => "✖ Crashed",
-            _ => "Unknown"
-        };
-
-        public Brush StatusColor => _state switch
-        {
-            ServerState.Online => Brushes.LimeGreen,
-            ServerState.Starting or ServerState.Stopping => Brushes.Orange,
-            ServerState.Crashed => Brushes.Red,
-            _ => Brushes.Gray
-        };
-
-        public ObservableCollection<double> CpuHistory { get; } = new();
-        public ObservableCollection<double> RamHistory { get; } = new();
-        public LiveChartsCore.ISeries[]? CpuSeries { get; set; }
-        public LiveChartsCore.ISeries[]? RamSeries { get; set; }
-        public LiveChartsCore.SkiaSharpView.Painting.SolidColorPaint InvisiblePaint { get; set; } = new LiveChartsCore.SkiaSharpView.Painting.SolidColorPaint(SkiaSharp.SKColors.Transparent);
-        public LiveChartsCore.SkiaSharpView.Axis[] InvisibleXAxes { get; set; } =
-            new[]
+            if (SetProperty(ref _tunnelAddress, value))
             {
-                new LiveChartsCore.SkiaSharpView.Axis { IsVisible = false, ShowSeparatorLines = false }
-            };
-        public LiveChartsCore.SkiaSharpView.Axis[] InvisibleYAxes { get; set; } =
-            new[]
-            {
-                new LiveChartsCore.SkiaSharpView.Axis { IsVisible = false, MinLimit = 0, ShowSeparatorLines = false }
-            };
-
-        // ── Stats row (always visible — "—" when stopped) ──
-
-        public string CpuText
-        {
-            get => _cpuText;
-            set
-            {
-                _cpuText = value;
-                OnPropertyChanged(nameof(CpuText));
-            }
-        }
-
-        public string RamText
-        {
-            get => _ramText;
-            set
-            {
-                _ramText = value;
-                OnPropertyChanged(nameof(RamText));
-            }
-        }
-
-        public string PlayerStatus
-        {
-            get => _playerStatus;
-            set
-            {
-                _playerStatus = value;
-                OnPropertyChanged(nameof(PlayerStatus));
-            }
-        }
-
-        public int MaxPlayers
-        {
-            get => _metadata.MaxPlayers;
-            set
-            {
-                _metadata.MaxPlayers = value;
-                OnPropertyChanged(nameof(MaxPlayers));
-            }
-        }
-
-        // ── IP row (always visible — "—" when no tunnel) ──
-
-        public string? TunnelAddress
-        {
-            get => _tunnelAddress;
-            set
-            {
-                _tunnelAddress = value;
-                IpDisplayText = string.IsNullOrEmpty(value) ? "Will Appear Here!" : value;
-                OnPropertyChanged(nameof(TunnelAddress));
+                OnPropertyChanged(nameof(DisplayAddress));
                 OnPropertyChanged(nameof(HasTunnelAddress));
+                UpdateIpDisplay();
             }
         }
+    }
 
-        public bool HasTunnelAddress => !string.IsNullOrEmpty(_tunnelAddress);
+    public string DisplayAddress => _tunnelAddress ?? "127.0.0.1";
 
-        /// <summary>
-        /// The text actually displayed in the IP row badge.
-        /// Shows the address when available, "— " when not, or "✓ Copied" briefly after a click.
-        /// </summary>
-        public string IpDisplayText
+    public void UpdateState(ServerState newState)
+    {
+        if (_state != newState)
         {
-            get => _ipDisplayText;
-            set
-            {
-                _ipDisplayText = value;
-                OnPropertyChanged(nameof(IpDisplayText));
-            }
-        }
-
-        public void EnsureChartsReady()
-        {
-            if (CpuSeries != null)
-            {
-                return;
-            }
-
-            CpuSeries =
-            new LiveChartsCore.ISeries[]
-            {
-                new LiveChartsCore.SkiaSharpView.LineSeries<double>
-                {
-                    Values = CpuHistory,
-                    Fill = new LiveChartsCore.SkiaSharpView.Painting.SolidColorPaint(SkiaSharp.SKColor.Parse("#204CAF50")),
-                    Stroke = new LiveChartsCore.SkiaSharpView.Painting.SolidColorPaint(SkiaSharp.SKColor.Parse("#4CAF50")) { StrokeThickness = 2 },
-                    GeometryFill = null,
-                    GeometryStroke = null,
-                    LineSmoothness = 0.5
-                }
-            };
-
-            RamSeries =
-            new LiveChartsCore.ISeries[]
-            {
-                new LiveChartsCore.SkiaSharpView.LineSeries<double>
-                {
-                    Values = RamHistory,
-                    Fill = new LiveChartsCore.SkiaSharpView.Painting.SolidColorPaint(SkiaSharp.SKColor.Parse("#202196F3")),
-                    Stroke = new LiveChartsCore.SkiaSharpView.Painting.SolidColorPaint(SkiaSharp.SKColor.Parse("#2196F3")) { StrokeThickness = 2 },
-                    GeometryFill = null,
-                    GeometryStroke = null,
-                    LineSmoothness = 0.5
-                }
-            };
-
-            OnPropertyChanged(nameof(CpuSeries));
-            OnPropertyChanged(nameof(RamSeries));
-        }
-
-        public void UpdateState(ServerState newState)
-        {
-            _countdownText = null;
             _state = newState;
-
-            // Reset stats to "—" when server stops
-            if (!IsRunning)
-            {
-                CpuText = "· · ·";
-                RamText = "· · ·";
-                PlayerStatus = "· · ·";
-            }
-
+            OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(StatusBrush));
             OnPropertyChanged(nameof(IsRunning));
             OnPropertyChanged(nameof(ShowRunningControls));
             OnPropertyChanged(nameof(RunningControlsVisibility));
             OnPropertyChanged(nameof(StoppedControlsVisibility));
-            OnPropertyChanged(nameof(IsWaitingToRestart));
             OnPropertyChanged(nameof(StopButtonText));
-            OnPropertyChanged(nameof(StatusText));
-            OnPropertyChanged(nameof(StatusColor));
         }
+    }
 
-        public void UpdateCountdown(int seconds)
+    public void UpdateCountdown(int secondsLeft)
+    {
+        _countdownText = $"🔄 Restarting in {secondsLeft}s...";
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(ShowRunningControls));
+        OnPropertyChanged(nameof(RunningControlsVisibility));
+        OnPropertyChanged(nameof(StoppedControlsVisibility));
+        OnPropertyChanged(nameof(StopButtonText));
+    }
+
+    public void ClearCountdown()
+    {
+        _countdownText = null;
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(ShowRunningControls));
+        OnPropertyChanged(nameof(RunningControlsVisibility));
+        OnPropertyChanged(nameof(StoppedControlsVisibility));
+        OnPropertyChanged(nameof(StopButtonText));
+    }
+
+    private void UpdateIpDisplay()
+    {
+        if (!string.IsNullOrEmpty(_tunnelAddress))
         {
-            _countdownText = $"Restarting in {seconds}s...";
-            _state = ServerState.Crashed;
-            OnPropertyChanged(nameof(IsWaitingToRestart));
-            OnPropertyChanged(nameof(ShowRunningControls));
-            OnPropertyChanged(nameof(RunningControlsVisibility));
-            OnPropertyChanged(nameof(StoppedControlsVisibility));
-            OnPropertyChanged(nameof(StopButtonText));
-            OnPropertyChanged(nameof(StatusText));
-            OnPropertyChanged(nameof(StatusColor));
+            IpDisplayText = _tunnelAddress;
         }
+    }
 
-        public void UpdateFromMetadata(InstanceMetadata newMetadata)
-        {
-            _metadata.Name = newMetadata.Name;
-            _metadata.Description = newMetadata.Description;
-            _metadata.MinecraftVersion = newMetadata.MinecraftVersion;
-            _metadata.ServerType = newMetadata.ServerType;
-            _metadata.MinRamMb = newMetadata.MinRamMb;
-            _metadata.MaxRamMb = newMetadata.MaxRamMb;
-            _metadata.MaxPlayers = newMetadata.MaxPlayers;
-            _metadata.Motd = newMetadata.Motd;
-            RefreshNameDescription();
-            OnPropertyChanged(nameof(MaxPlayers));
-        }
+    public void UpdateFromMetadata(InstanceMetadata newMeta)
+    {
+        _metadata = newMeta;
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(MinecraftVersion));
+        OnPropertyChanged(nameof(ServerType));
+        OnPropertyChanged(nameof(MaxPlayers));
+    }
 
-        public ServerState State
-        {
-            get => _state;
-            set => UpdateState(value);
-        }
-
-        public void RefreshNameDescription()
-        {
-            OnPropertyChanged(nameof(Name));
-            OnPropertyChanged(nameof(Description));
-            OnPropertyChanged(nameof(MinecraftVersion));
-            OnPropertyChanged(nameof(ServerType));
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected void OnPropertyChanged(string prop) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected virtual void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    protected bool SetProperty<T>(ref T field, T value, string? propertyName = null)
+    {
+        if (Equals(field, value)) return false;
+        field = value;
+        OnPropertyChanged(propertyName ?? string.Empty);
+        return true;
     }
 }

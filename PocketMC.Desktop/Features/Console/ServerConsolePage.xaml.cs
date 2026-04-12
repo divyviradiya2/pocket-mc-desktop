@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 using Wpf.Ui.Controls;
 using PocketMC.Desktop.Core.Interfaces;
 using PocketMC.Desktop.Models;
-using PocketMC.Desktop.Services;
+using PocketMC.Desktop.Features.Instances;
 
 namespace PocketMC.Desktop.Features.Console
 {

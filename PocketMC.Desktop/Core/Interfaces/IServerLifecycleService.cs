@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using PocketMC.Desktop.Models;
-using PocketMC.Desktop.Services;
+using PocketMC.Desktop.Features.Instances;
 
 namespace PocketMC.Desktop.Core.Interfaces
 {

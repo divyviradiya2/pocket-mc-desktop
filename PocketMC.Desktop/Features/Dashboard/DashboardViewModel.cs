@@ -11,6 +11,7 @@ using PocketMC.Desktop.Features.InstanceCreation;
 using PocketMC.Desktop.Features.Shell;
 using PocketMC.Desktop.Features.Dashboard;
 using PocketMC.Desktop.Features.Instances;
+using PocketMC.Desktop.Features.Instances.Backups;
 
 namespace PocketMC.Desktop.Features.Dashboard
 {
