@@ -47,6 +47,7 @@ public partial class MainWindow : FluentWindow, IShellHost, IStartupShellHost
         DataContext = _viewModel;
 
         InitializeComponent();
+        ApplyDynamicWindowSize();
 
         if (visualService is ShellVisualService concreteVisual)
         {
@@ -59,6 +60,25 @@ public partial class MainWindow : FluentWindow, IShellHost, IStartupShellHost
         
         Closing += MainWindow_Closing;
         _startupCoordinator.AttachHost(this);
+    }
+
+    /// <summary>
+    /// Sets the window size to 75% of the user's screen work area,
+    /// respecting DPI scaling so it works correctly on High-DPI displays.
+    /// Enforces a minimum floor (960×640) so the UI stays usable on small screens.
+    /// </summary>
+    private void ApplyDynamicWindowSize()
+    {
+        const double targetRatio = 0.75;
+        const double minWidth = 960;
+        const double minHeight = 640;
+
+        // SystemParameters.WorkArea returns device-independent pixels (already DPI-aware)
+        double workAreaWidth = SystemParameters.WorkArea.Width;
+        double workAreaHeight = SystemParameters.WorkArea.Height;
+
+        Width = Math.Max(minWidth, workAreaWidth * targetRatio);
+        Height = Math.Max(minHeight, workAreaHeight * targetRatio);
     }
 
     private void OnNavigated(NavigationView sender, NavigatedEventArgs args)
