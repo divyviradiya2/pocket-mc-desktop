@@ -69,7 +69,8 @@ public partial class MainWindow : FluentWindow, IShellHost, IStartupShellHost
     /// </summary>
     private void ApplyDynamicWindowSize()
     {
-        const double targetRatio = 0.75;
+        const double widthRatio = 0.75;
+        const double heightRatio = 0.85; // Slightly increased vertical footprint
         const double minWidth = 960;
         const double minHeight = 640;
 
@@ -77,8 +78,8 @@ public partial class MainWindow : FluentWindow, IShellHost, IStartupShellHost
         double workAreaWidth = SystemParameters.WorkArea.Width;
         double workAreaHeight = SystemParameters.WorkArea.Height;
 
-        Width = Math.Max(minWidth, workAreaWidth * targetRatio);
-        Height = Math.Max(minHeight, workAreaHeight * targetRatio);
+        Width = Math.Max(minWidth, workAreaWidth * widthRatio);
+        Height = Math.Max(minHeight, workAreaHeight * heightRatio);
     }
 
     private void OnNavigated(NavigationView sender, NavigatedEventArgs args)
