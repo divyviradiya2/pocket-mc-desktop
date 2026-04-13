@@ -252,5 +252,31 @@ namespace PocketMC.Desktop.Features.Settings
             _isDisposed = true;
             ViewModel.Dispose();
         }
+
+        private void BtnEditMotd_Click(object sender, RoutedEventArgs e)
+        {
+            MotdDisplayMode.Visibility = Visibility.Collapsed;
+            MotdEditorMode.Visibility = Visibility.Visible;
+            TxtMotdRaw.Focus();
+        }
+
+        private void BtnSaveMotd_Click(object sender, RoutedEventArgs e)
+        {
+            MotdDisplayMode.Visibility = Visibility.Visible;
+            MotdEditorMode.Visibility = Visibility.Collapsed;
+        }
+
+        private void BtnInsertMotdColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string code)
+            {
+                int caretIndex = TxtMotdRaw.CaretIndex;
+                string text = TxtMotdRaw.Text ?? string.Empty;
+                TxtMotdRaw.Text = text.Insert(caretIndex, code);
+                TxtMotdRaw.CaretIndex = caretIndex + code.Length;
+                TxtMotdRaw.Focus();
+            }
+        }
+
     }
 }

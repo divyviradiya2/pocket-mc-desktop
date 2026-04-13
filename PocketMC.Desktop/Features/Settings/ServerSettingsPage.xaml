@@ -13,6 +13,9 @@
         <BooleanToVisibilityConverter x:Key="VisibleIfTrue"/>
         <localUtils:InverseBooleanToVisibilityConverter x:Key="InvertedVisibilityConverter" xmlns:localUtils="clr-namespace:PocketMC.Desktop.Utils"/>
         <localUtils:InverseBooleanConverter x:Key="InvertedBooleanConverter" xmlns:localUtils="clr-namespace:PocketMC.Desktop.Utils"/>
+        <localUtils:MinecraftMotdConverter x:Key="MotdConverter" xmlns:localUtils="clr-namespace:PocketMC.Desktop.Utils"/>
+
+        <ImageBrush x:Key="DirtBackground" ImageSource="pack://application:,,,/Assets/dark_dirt.png" Viewport="0,0,45,46" ViewportUnits="Absolute" TileMode="Tile" Stretch="Fill" />
 
         <!-- Premium Styles -->
         <Style TargetType="{x:Type ui:TextBox}" BasedOn="{StaticResource {x:Type ui:TextBox}}">
@@ -133,17 +136,107 @@
                                 <StackPanel>
                                     <ui:CardExpander Header="Visual Identity" Icon="{ui:SymbolIcon Settings24}" Margin="0,0,0,12" IsExpanded="True">
                                         <StackPanel Margin="16,8,16,16">
-                                            <TextBlock Text="Message of the Day (MOTD):" Style="{StaticResource SettingsHeader}"/>
-                                            <ui:TextBox Text="{Binding General.Motd, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Managed by PocketMC"/>
                                             
-                                            <TextBlock Text="Networking Port:" Style="{StaticResource SettingsHeader}" Margin="0,15,0,8"/>
-                                            <ui:TextBox Text="{Binding General.ServerPort, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="25565" Width="120" HorizontalAlignment="Left"/>
+                                            <!-- Interactive Dummy Server Card -->
+                                            <Border Background="{StaticResource DirtBackground}" BorderThickness="2" BorderBrush="#000000" Padding="4" Margin="0,0,0,16" CornerRadius="0">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/> <!-- Server Icon -->
+                                                        <ColumnDefinition Width="6"/> <!-- Tight Spacing -->
+                                                        <ColumnDefinition Width="*"/> <!-- Server Info & MOTD -->
+                                                        <ColumnDefinition Width="Auto"/> <!-- Action Buttons -->
+                                                    </Grid.ColumnDefinitions>
 
-                                            <TextBlock Text="Server Identity Icon:" Style="{StaticResource SettingsHeader}" Margin="0,15,0,8"/>
-                                            <StackPanel Orientation="Horizontal">
-                                                <Image Source="{Binding General.ServerIcon}" Width="64" Height="64" Margin="0,0,16,0" Stretch="UniformToFill"/>
-                                                <ui:Button Content="Change Icon..." Appearance="Secondary" Command="{Binding General.BrowseIconCommand}" VerticalAlignment="Center"/>
-                                            </StackPanel>
+                                                    <!-- Icon area with Edit Hover -->
+                                                    <Grid Grid.Column="0" Width="64" Height="64">
+                                                        <Border BorderThickness="1" BorderBrush="#333333" Background="#111">
+                                                            <Image Source="{Binding General.ServerIcon}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                        </Border>
+                                                        <ui:Button Appearance="Primary" Padding="4" Command="{Binding General.BrowseIconCommand}" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="-8,-8,0,0" ToolTip="Change Server Icon">
+                                                            <ui:SymbolIcon Symbol="Edit16" />
+                                                        </ui:Button>
+                                                    </Grid>
+
+                                                    <Grid Grid.Column="2">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/> <!-- Top row: Name -->
+                                                            <RowDefinition Height="*"/> <!-- Bottom row: MOTD -->
+                                                        </Grid.RowDefinitions>
+
+                                                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,-2,0,2">
+                                                            <!-- Server Name (Fixed for visual display) -->
+                                                            <TextBlock Text="Minecraft Server" FontFamily="Consolas" FontSize="15" Foreground="White" FontWeight="SemiBold">
+                                                                <TextBlock.Effect>
+                                                                    <DropShadowEffect BlurRadius="0" ShadowDepth="2" Opacity="1" Color="Black" />
+                                                                </TextBlock.Effect>
+                                                            </TextBlock>
+                                                        </StackPanel>
+
+                                                        <!-- MOTD Display & Editor -->
+                                                        <Grid Grid.Row="1" VerticalAlignment="Top">
+                                                            
+                                                            <!-- Display Mode -->
+                                                            <StackPanel x:Name="MotdDisplayMode">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <ContentControl Content="{Binding General.Motd, Converter={StaticResource MotdConverter}}" FontFamily="Consolas" FontSize="14">
+                                                                        <ContentControl.Effect>
+                                                                            <DropShadowEffect BlurRadius="0" ShadowDepth="2" Opacity="1" Color="Black" />
+                                                                        </ContentControl.Effect>
+                                                                    </ContentControl>
+                                                                    <ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon Edit16}" Click="BtnEditMotd_Click" Margin="4,-2,0,0" Padding="2" ToolTip="Edit MOTD"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                            
+                                                            <!-- MOTD Editor Mode -->
+                                                            <StackPanel x:Name="MotdEditorMode" Visibility="Collapsed" Margin="0,0,0,0">
+                                                                <WrapPanel Margin="0,0,0,4" MaxWidth="280">
+                                                                    <!-- Colors -->
+                                                                    <Button Content="&#167;4" ToolTip="Dark Red" Click="BtnInsertMotdColor_Click" Tag="&#167;4" Background="#AA0000" Foreground="White" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    <Button Content="&#167;c" ToolTip="Red" Click="BtnInsertMotdColor_Click" Tag="&#167;c" Background="#FF5555" Foreground="White" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    <Button Content="&#167;6" ToolTip="Gold" Click="BtnInsertMotdColor_Click" Tag="&#167;6" Background="#FFAA00" Foreground="White" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    <Button Content="&#167;e" ToolTip="Yellow" Click="BtnInsertMotdColor_Click" Tag="&#167;e" Background="#FFFF55" Foreground="Black" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    <Button Content="&#167;2" ToolTip="Dark Green" Click="BtnInsertMotdColor_Click" Tag="&#167;2" Background="#00AA00" Foreground="White" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    <Button Content="&#167;a" ToolTip="Green" Click="BtnInsertMotdColor_Click" Tag="&#167;a" Background="#55FF55" Foreground="Black" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    <Button Content="&#167;b" ToolTip="Aqua" Click="BtnInsertMotdColor_Click" Tag="&#167;b" Background="#55FFFF" Foreground="Black" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    <Button Content="&#167;1" ToolTip="Dark Blue" Click="BtnInsertMotdColor_Click" Tag="&#167;1" Background="#0000AA" Foreground="White" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    <Button Content="&#167;d" ToolTip="Light Purple" Click="BtnInsertMotdColor_Click" Tag="&#167;d" Background="#FF55FF" Foreground="White" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    <Button Content="&#167;f" ToolTip="White" Click="BtnInsertMotdColor_Click" Tag="&#167;f" Background="#FFFFFF" Foreground="Black" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    <Button Content="&#167;0" ToolTip="Black" Click="BtnInsertMotdColor_Click" Tag="&#167;0" Background="#000000" Foreground="White" BorderThickness="0" Margin="0,0,8,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    
+                                                                    <!-- Formatters -->
+                                                                    <Button Content="&#167;l" ToolTip="Bold" Click="BtnInsertMotdColor_Click" Tag="&#167;l" Background="#333" Foreground="Silver" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" FontWeight="Bold" Cursor="Hand"/>
+                                                                    <Button Content="&#167;n" ToolTip="Underline" Click="BtnInsertMotdColor_Click" Tag="&#167;n" Background="#333" Foreground="Silver" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                    <Button Content="&#167;r" ToolTip="Reset" Click="BtnInsertMotdColor_Click" Tag="&#167;r" Background="#333" Foreground="Silver" BorderThickness="0" Margin="0,0,2,2" Padding="2" FontFamily="Consolas" Cursor="Hand"/>
+                                                                </WrapPanel>
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <ui:TextBox x:Name="TxtMotdRaw" Text="{Binding General.Motd, UpdateSourceTrigger=PropertyChanged}" Width="280" FontFamily="Consolas"/>
+                                                                    <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon Checkmark16}" Click="BtnSaveMotd_Click" Margin="6,0,0,0" ToolTip="Save"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Grid>
+                                                    
+                                                    <!-- Signal Bars Dummy -->
+                                                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Top" Margin="8,0,4,0">
+                                                        <TextBlock FontSize="15" FontFamily="Consolas" Foreground="#AAAAAA" VerticalAlignment="Top" Margin="0,0,6,0" FontWeight="SemiBold">
+                                                            <Run Text="0/"/><Run Text="{Binding World.MaxPlayers, FallbackValue=20}"/>
+                                                            <TextBlock.Effect>
+                                                                <DropShadowEffect BlurRadius="0" ShadowDepth="2" Opacity="1" Color="Black"/>
+                                                            </TextBlock.Effect>
+                                                        </TextBlock>
+                                                        <Grid Width="16" Height="14" VerticalAlignment="Top" Margin="0,2,0,0">
+                                                            <Rectangle Width="3" Height="4" Fill="#00FF00" HorizontalAlignment="Left" VerticalAlignment="Bottom"/>
+                                                            <Rectangle Width="3" Height="7" Fill="#00FF00" HorizontalAlignment="Left" Margin="4,0,0,0" VerticalAlignment="Bottom"/>
+                                                            <Rectangle Width="3" Height="10" Fill="#00FF00" HorizontalAlignment="Left" Margin="8,0,0,0" VerticalAlignment="Bottom"/>
+                                                            <Rectangle Width="3" Height="14" Fill="#00FF00" HorizontalAlignment="Left" Margin="12,0,0,0" VerticalAlignment="Bottom"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Keep Networking Port input -->
+                                            <TextBlock Text="Networking Port:" Style="{StaticResource SettingsHeader}" Margin="0,0,0,8"/>
+                                            <ui:TextBox Text="{Binding General.ServerPort, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="25565" Width="120" HorizontalAlignment="Left"/>
                                         </StackPanel>
                                     </ui:CardExpander>
 
