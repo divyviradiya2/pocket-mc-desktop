@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace PocketMC.Desktop.Utils;
+namespace PocketMC.Desktop.Features.Setup;
 
 public static class RootDirectorySetupHelper
 {

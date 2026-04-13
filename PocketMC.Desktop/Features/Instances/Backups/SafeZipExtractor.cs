@@ -3,7 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
 
-namespace PocketMC.Desktop.Utils
+namespace PocketMC.Desktop.Features.Instances.Backups
 {
     public static class SafeZipExtractor
     {

@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
-namespace PocketMC.Desktop.Utils
+namespace PocketMC.Desktop.Core.Presentation
 {
     public class InverseBooleanConverter : IValueConverter
     {

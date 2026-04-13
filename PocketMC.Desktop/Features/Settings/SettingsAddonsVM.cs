@@ -7,7 +7,15 @@ using Microsoft.Extensions.DependencyInjection;
 using PocketMC.Desktop.Core.Interfaces;
 using PocketMC.Desktop.Core.Mvvm;
 using PocketMC.Desktop.Models;
-using PocketMC.Desktop.Utils;
+using PocketMC.Desktop.Infrastructure.Security;
+using PocketMC.Desktop.Features.Instances.Backups;
+using PocketMC.Desktop.Features.Setup;
+using PocketMC.Desktop.Features.Console;
+using PocketMC.Desktop.Infrastructure.Process;
+using PocketMC.Desktop.Features.Instances;
+using PocketMC.Desktop.Infrastructure.FileSystem;
+using PocketMC.Desktop.Features.Settings;
+using PocketMC.Desktop.Core.Presentation;
 using PocketMC.Desktop.Features.Mods;
 using PocketMC.Desktop.Features.Marketplace;
 

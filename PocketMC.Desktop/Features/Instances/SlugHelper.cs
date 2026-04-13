@@ -1,7 +1,7 @@
 using System;
 using System.Text.RegularExpressions;
 
-namespace PocketMC.Desktop.Utils
+namespace PocketMC.Desktop.Features.Instances
 {
     public static class SlugHelper
     {

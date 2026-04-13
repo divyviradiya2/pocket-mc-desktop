@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace PocketMC.Desktop.Utils
+namespace PocketMC.Desktop.Infrastructure.Process
 {
     public static class MemoryHelper
     {

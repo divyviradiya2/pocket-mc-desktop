@@ -11,9 +11,9 @@
 
     <Page.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleIfTrue"/>
-        <localUtils:InverseBooleanToVisibilityConverter x:Key="InvertedVisibilityConverter" xmlns:localUtils="clr-namespace:PocketMC.Desktop.Utils"/>
-        <localUtils:InverseBooleanConverter x:Key="InvertedBooleanConverter" xmlns:localUtils="clr-namespace:PocketMC.Desktop.Utils"/>
-        <localUtils:MinecraftMotdConverter x:Key="MotdConverter" xmlns:localUtils="clr-namespace:PocketMC.Desktop.Utils"/>
+        <presentation:InverseBooleanToVisibilityConverter x:Key="InvertedVisibilityConverter" xmlns:presentation="clr-namespace:PocketMC.Desktop.Core.Presentation"/>
+        <presentation:InverseBooleanConverter x:Key="InvertedBooleanConverter" xmlns:presentation="clr-namespace:PocketMC.Desktop.Core.Presentation"/>
+        <settings:MinecraftMotdConverter x:Key="MotdConverter" xmlns:settings="clr-namespace:PocketMC.Desktop.Features.Settings"/>
 
         <ImageBrush x:Key="DirtBackground" ImageSource="pack://application:,,,/Assets/dark_dirt.png" Viewport="0,0,45,46" ViewportUnits="Absolute" TileMode="Tile" Stretch="Fill" />
 

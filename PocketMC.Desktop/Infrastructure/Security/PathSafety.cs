@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace PocketMC.Desktop.Utils
+namespace PocketMC.Desktop.Infrastructure.Security
 {
     /// <summary>
     /// Shared path-safety utilities for validating file paths against

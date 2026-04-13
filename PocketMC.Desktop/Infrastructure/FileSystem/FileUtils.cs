@@ -4,7 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace PocketMC.Desktop.Utils
+namespace PocketMC.Desktop.Infrastructure.FileSystem
 {
     /// <summary>
     /// Production-grade recursive file operations that safely handle

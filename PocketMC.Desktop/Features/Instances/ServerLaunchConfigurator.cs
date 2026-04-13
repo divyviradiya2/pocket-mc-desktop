@@ -10,7 +10,15 @@ using Microsoft.Extensions.Logging;
 using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Features.Java;
 using PocketMC.Desktop.Infrastructure;
-using PocketMC.Desktop.Utils;
+using PocketMC.Desktop.Infrastructure.Security;
+using PocketMC.Desktop.Features.Instances.Backups;
+using PocketMC.Desktop.Features.Setup;
+using PocketMC.Desktop.Features.Console;
+using PocketMC.Desktop.Infrastructure.Process;
+using PocketMC.Desktop.Features.Instances;
+using PocketMC.Desktop.Infrastructure.FileSystem;
+using PocketMC.Desktop.Features.Settings;
+using PocketMC.Desktop.Core.Presentation;
 
 namespace PocketMC.Desktop.Features.Instances
 {

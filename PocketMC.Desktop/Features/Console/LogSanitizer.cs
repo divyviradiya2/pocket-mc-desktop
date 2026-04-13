@@ -2,7 +2,7 @@ using System;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace PocketMC.Desktop.Utils
+namespace PocketMC.Desktop.Features.Console
 {
     public static class LogSanitizer
     {

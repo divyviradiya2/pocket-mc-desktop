@@ -6,7 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 
-namespace PocketMC.Desktop.Utils
+namespace PocketMC.Desktop.Features.Settings
 {
     public class MinecraftMotdConverter : IValueConverter
     {
