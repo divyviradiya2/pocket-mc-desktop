@@ -11,20 +11,8 @@ using Microsoft.Extensions.Logging;
 using PocketMC.Desktop.Models;
 using PocketMC.Desktop.Features.Java;
 using PocketMC.Desktop.Infrastructure;
-using PocketMC.Desktop.Infrastructure.Security;
-using PocketMC.Desktop.Features.Instances.Backups;
-using PocketMC.Desktop.Features.Setup;
-using PocketMC.Desktop.Features.Console;
-using PocketMC.Desktop.Infrastructure.Process;
-using PocketMC.Desktop.Features.Instances;
-using PocketMC.Desktop.Features.Instances.Services;
-using PocketMC.Desktop.Features.Instances.Models;
-using PocketMC.Desktop.Infrastructure.FileSystem;
-using PocketMC.Desktop.Features.Settings;
-using PocketMC.Desktop.Core.Presentation;
 
-namespace PocketMC.Desktop.Features.Instances.Services
-{
+namespace PocketMC.Desktop.Features.Instances.Services;
     /// <summary>
     /// Encapsulates the logic for configuring a Minecraft server process launch.
     /// Extracts complex PSI construction from ServerProcess.
@@ -215,4 +203,3 @@ namespace PocketMC.Desktop.Features.Instances.Services
             }
         }
     }
-}

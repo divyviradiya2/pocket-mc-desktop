@@ -2,13 +2,8 @@ using PocketMC.Desktop.Features.Instances.Models;
 using System;
 using System.IO;
 using PocketMC.Desktop.Features.Shell;
-using PocketMC.Desktop.Features.Instances;
-using PocketMC.Desktop.Features.Instances.Services;
-using PocketMC.Desktop.Features.Instances.Models;
-using PocketMC.Desktop.Features.Dashboard;
 
-namespace PocketMC.Desktop.Features.Instances.Services
-{
+namespace PocketMC.Desktop.Features.Instances.Services;
     /// <summary>
     /// Provides path resolution for instance-related files and directories.
     /// Centralizes knowledge of the server storage structure.
@@ -47,4 +42,4 @@ namespace PocketMC.Desktop.Features.Instances.Services
             }
         }
     }
-}
+

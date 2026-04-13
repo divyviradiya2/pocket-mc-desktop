@@ -2,8 +2,8 @@ using PocketMC.Desktop.Features.Instances.Models;
 using System;
 using System.Text.RegularExpressions;
 
-namespace PocketMC.Desktop.Features.Instances.Services
-{
+namespace PocketMC.Desktop.Features.Instances.Services;
+
     public static class SlugHelper
     {
         private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
@@ -41,4 +41,3 @@ namespace PocketMC.Desktop.Features.Instances.Services
             return slug;
         }
     }
-}

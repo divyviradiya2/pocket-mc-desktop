@@ -8,8 +8,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using PocketMC.Desktop.Models;
 
-namespace PocketMC.Desktop.Features.Instances.Services
-{
+namespace PocketMC.Desktop.Features.Instances.Services;
     /// <summary>
     /// Maintains an in-memory registry of all discovered Minecraft instances.
     /// Handles metadata caching and broadcasts changes to the ecosystem.
@@ -137,4 +136,3 @@ namespace PocketMC.Desktop.Features.Instances.Services
             }
         }
     }
-}

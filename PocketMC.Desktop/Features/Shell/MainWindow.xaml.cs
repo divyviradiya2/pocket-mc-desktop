@@ -12,9 +12,7 @@ using PocketMC.Desktop.Features.Shell;
 using PocketMC.Desktop.Features.Dashboard;
 using PocketMC.Desktop.Features.Tunnel;
 using PocketMC.Desktop.Features.Setup;
-using PocketMC.Desktop.Features.Settings;
 using PocketMC.Desktop.Features.Instances.Services;
-using PocketMC.Desktop.Features.Settings;
 using Wpf.Ui.Controls;
 
 namespace PocketMC.Desktop.Features.Shell;

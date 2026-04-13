@@ -1,6 +1,5 @@
-using PocketMC.Desktop.Features.Instances.Models;
-namespace PocketMC.Desktop.Features.Instances.Services
-{
+namespace PocketMC.Desktop.Features.Instances.Services;
+
     public struct DownloadProgress
     {
         public long BytesRead { get; set; }
@@ -15,4 +14,3 @@ namespace PocketMC.Desktop.Features.Instances.Services
             }
         }
     }
-}

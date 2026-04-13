@@ -4,9 +4,6 @@ using System.Collections.Specialized;
 using System.Windows.Input;
 using PocketMC.Desktop.Core.Mvvm;
 using PocketMC.Desktop.Models;
-using PocketMC.Desktop.Features.Instances;
-using PocketMC.Desktop.Features.Instances.Services;
-using PocketMC.Desktop.Features.Instances.Models;
 using PocketMC.Desktop.Features.Instances.Services;
 using PocketMC.Desktop.Features.Instances.Models;
 
