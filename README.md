@@ -104,12 +104,6 @@ It is not a hosting panel. It runs on your PC. Your server, your hardware, your 
 ---
 
 
-### Quick Start & Demo
-
-![30-second Demo](docs/assets/demo.gif)
-
-[![Quick Start Video](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
-
 ## Screenshots
 
 | Dashboard | Server Console |
