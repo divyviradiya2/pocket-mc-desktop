@@ -1,71 +1,48 @@
-name: .NET Core Desktop
+name: Build & Release
 
 on:
   push:
-    branches: [ "main", "master" ]
+    tags: ['v*']
   pull_request:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
+    branches: [main]
 
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
 
-    - name: Cache NuGet packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.nuget/packages
-        key: nuget-${{ hashFiles('**/*.csproj') }}
-        restore-keys: |
-          nuget-
+      - name: Restore & Build
+        run: |
+          dotnet restore
+          dotnet build --configuration Release --no-restore
 
-    - name: Restore dependencies
-      run: dotnet restore PocketMC.Desktop.sln
+      - name: Run Tests
+        run: dotnet test --configuration Release --no-build
 
-    - name: Build Configuration Debug
-      run: dotnet build PocketMC.Desktop.sln --configuration Debug --no-restore
+      - name: Publish
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          dotnet publish PocketMC.Desktop\PocketMC.Desktop.csproj `
+            -c Release -r win-x64 `
+            -p:PublishSingleFile=true `
+            -p:PublishReadyToRun=true `
+            --self-contained false `
+            -o publish_output
 
-    - name: Build Configuration Release
-      run: dotnet build PocketMC.Desktop.sln --configuration Release --no-restore
+      - name: Build Installer
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
-    - name: Run Tests
-      run: dotnet test PocketMC.Desktop.sln --configuration Release --no-build
-
-    - name: Publish Portable Executable
-      run: dotnet publish PocketMC.Desktop\PocketMC.Desktop.csproj -c Release -r win-x64 -p:PublishSingleFile=true -p:PublishReadyToRun=true --self-contained false -o portable_release
-      
-    - name: Upload Portable EXE Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: PocketMC_Portable
-        path: portable_release\
-
-    - name: Publish App (Multi-File for Better Performance)
-      run: dotnet publish PocketMC.Desktop\PocketMC.Desktop.csproj -c Release -r win-x64 -p:PublishSingleFile=false -p:PublishReadyToRun=true --self-contained false -o publish_output
-      
-    - name: Extract version
-      id: version
-      shell: pwsh
-      run: |
-        $version = ([xml](Get-Content PocketMC.Desktop/PocketMC.Desktop.csproj)).Project.PropertyGroup.Version
-        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-
-    - name: Create Installer using Inno Setup
-      uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
-      with:
-        path: installer.iss
-        arguments: /DAppVersion=${{ steps.version.outputs.VERSION }}
-
-    - name: Upload Installer Setup Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: PocketMC_Setup
-        path: ReleaseOutput\PocketMC_Setup.exe
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ReleaseOutput/PocketMC_Setup.exe
+          generate_release_notes: true
